@@ -1,0 +1,199 @@
+---
+title: "Untitled"
+author: "José Eduardo Jaramillo Barrera"
+date: "21 de marzo de 2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(easypackages)
+my_packages <- c("tidyverse", "readxl", "lubridate", "sp", "geosphere", "scales")
+my_packages2 <- c("tidyverse", "ggmap", "sf", "lubridate")
+libraries(my_packages2, my_packages)
+
+# Descarga la base de datos de DENUE
+
+datos <- read_csv("/Users/pvelazquez/Documents/PROYECTOS/INDUSTRIAL/DATOS/02_0317/denue_02_csv/conjunto_de_datos/denue_inegi_02_.csv")
+
+# Define las proyecciones
+
+pr2 <- "+proj=lcc +lat_1=17.5 +lat_2=29.5 +lat_0=12 +lon_0=-102 +x_0=2500000 +y_0=0 +ellps=GRS80 +units=m +no_defs"
+
+# Limpiar la base de datos DENUE
+
+denue <- datos %>%
+  dplyr::select(latitud, longitud ,cve_loc,municipio ,id, nom_estab, raz_social, codigo_act, nombre_act, per_ocu, tipo_vial, tipo_asent, nomb_asent, tipoCenCom, nom_CenCom, localidad, ageb, manzana, fecha_alta)  %>%
+  separate(fecha_alta, into = c("mes_alta", "year_alta"), sep = "\\s") %>%
+  mutate(latitud = as.numeric(latitud),
+         longitud = as.numeric(longitud),
+         day = 01,
+         fecha = ymd(as_date(paste0(year_alta, mes_alta, day))),
+         codigo_industria = factor(str_sub(codigo_act,1,2))) %>%
+  filter(municipio %in% "Tijuana" & 
+           codigo_industria %in% c("31", "32", "33") &
+           per_ocu %in% c("101 a 250 personas", "251 y más personas")) %>%
+  rename_all(funs(str_to_upper(.))) %>%
+  mutate(latitud = LATITUD,
+         longitud = LONGITUD) %>%
+  rename("y" = LATITUD,
+         "x" = LONGITUD) %>%
+  droplevels()
+
+
+
+denue_sf <- st_as_sf(denue, coords = c("x", "y"), crs = "+proj=longlat +ellps=WGS84 +datum=WGS84") %>%
+  st_transform(crs = 4326)
+
+denue_box <- st_bbox(denue_sf)
+
+
+mdist <- st_distance(denue_sf)
+
+hc <- hclust(as.dist(mdist), method = "complete")
+
+d = 8000
+
+denue_sf$clust <- cutree(hc, h = d)
+
+##########################################################################
+### SCRIPT PARA LEER LOS AGEB DEFINIDOS PARA TIJUANA    ##################
+##########################################################################
+
+
+# Lees los datos de polígonos de AGEB de Baja California
+
+maptj <- st_read("C:/Users/pvelazquez/Google Drive/MEXICO MAPA/Baja California/conjunto de datos/02a.shp")
+
+# Filtra para los datos solo para el municipio de Tijuana
+
+maptj <- maptj %>%
+  filter(CVE_MUN == "004")
+
+
+# define la proyeccion de los datos
+
+maptj <- st_transform(maptj, crs = "+init=epsg:4326")
+
+# Une las dos bases de datos
+
+denuem <- st_join(maptj, denue_sf)
+
+denue_location <- c(lon = -116.944333,
+                    lat = 32.491566)
+
+denue_map <- get_map(denue_location, zoom = 11)
+
+```
+# Principales aglomeraciones industriales en Tijuana
+
+```{r}
+ggmap(denue_map) + 
+  geom_sf(data = denuem, inherit.aes = FALSE, aes(fill = factor(clust), alpha = 0.01)) + 
+  theme(legend.position = "none") +
+  ggtitle("Principales aglomeraciones industriales en Tijuana")
+
+```
+
+# Mapa de la Población Económicamente Activa en Tijuana por AGEB
+
+
+```{r}
+
+
+dbcenso <- read_excel("C:/Users/pvelazquez/Desktop/CENSO VIVIENDA/RESAGEBURB_02XLS10/RESAGEBURB_02XLS10.xls")
+
+dbc <- dbcenso %>%
+  filter(MUN %in% "004") %>%
+  mutate_all(funs(str_replace_all(., "\\*", "NA"))) %>%
+  filter(!LOC %in% c("0000") & !AGEB %in% c("0000") & !MZA %in% c("000")) %>%
+  select(NOM_ENT, NOM_LOC, AGEB, MZA, POBTOT, POBMAS, POBFEM, P_15YMAS, 
+         P_15YMAS_M, P_15YMAS_F, REL_H_M, POB15_64, GRAPROES, GRAPROES_M, GRAPROES_F, TOTHOG, VIVTOT,
+         VPH_1CUART, VPH_2CUART, VPH_3YMASC, PEA) %>%
+  mutate(POBTOT     = as.numeric(POBTOT) ,
+         PEA = as.numeric(PEA),
+         POBMAS     = as.numeric(POBMAS), 
+         POBFEM     = as.numeric(POBFEM), 
+         P_15YMAS   = as.numeric(P_15YMAS), 
+         P_15YMAS_M = as.numeric(P_15YMAS_M), 
+         P_15YMAS_F = as.numeric(P_15YMAS_F), 
+         REL_H_M    = as.numeric(REL_H_M), 
+         POB15_64   = as.numeric(POB15_64), 
+         GRAPROES   = as.numeric(GRAPROES), 
+         GRAPROES_M = as.numeric(GRAPROES_M), 
+         GRAPROES_F = as.numeric(GRAPROES_F), 
+         TOTHOG     = as.numeric(TOTHOG), 
+         VIVTOT     = as.numeric(VIVTOT),
+         VPH_1CUART = as.numeric(VPH_1CUART), 
+         VPH_2CUART = as.numeric(VPH_2CUART), 
+         VPH_3YMASC = as.numeric(VPH_3YMASC),
+         CVE_AGEB   = as.character(AGEB),
+         spob = sum(POBTOT)) %>%
+  group_by(AGEB) %>%
+  summarise(sumapob = sum(POBTOT)) %>%
+  rename(., "CVE_AGEB" = "AGEB")
+
+
+tijuana <- left_join(maptj, dbc, by = "CVE_AGEB")
+
+
+
+
+```
+
+
+
+
+
+```{r}
+
+ggmap(denue_map) + 
+  geom_sf(data = tijuana, inherit.aes = FALSE, aes(fill = -sumapob))
+
+
+```
+
+
+```{r}
+
+dbc <- dbcenso %>%
+  filter(MUN %in% "004") %>%
+  mutate_all(funs(str_replace_all(., "\\*", "NA"))) %>%
+  filter(!LOC %in% c("0000") & !AGEB %in% c("0000") & !MZA %in% c("000")) %>%
+  select(NOM_ENT, NOM_LOC, AGEB, MZA, PEA) %>%
+  mutate(PEA = as.numeric(PEA),
+    spea = sum(PEA)) %>%
+  group_by(AGEB) %>%
+  summarise(sumpea = sum(PEA)) %>%
+  rename(., "CVE_AGEB" = "AGEB")
+
+centroid <- denue_sf %>%
+  mutate(counter = 1,
+         empresas = sum(counter)) %>%
+  group_by(clust) %>%
+  summarise(m.x = mean(latitud, na.rm = TRUE),
+            m.y = mean(longitud, na.rm = TRUE),
+            mn = n()) %>%
+  st_centroid()
+
+tjpea <- left_join(maptj, dbc, by = "CVE_AGEB")
+
+```
+
+
+
+```{r}
+
+ggmap(denue_map) + 
+  geom_sf(data = tjpea, inherit.aes = FALSE, aes(fill = -sumpea)) +
+  geom_sf(data = centroid, inherit.aes = FALSE, aes(colour = factor(clust))) + 
+  geom_sf(data = centroid, inherit.aes = FALSE, aes(colour = factor(clust), size = mn), alpha = 0.5) +
+  scale_size_continuous(range = c(3,19), breaks = pretty_breaks(7)) +
+  theme(legend.position = "none")
+
+```
+
+
+
+

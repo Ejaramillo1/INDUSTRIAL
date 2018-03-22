@@ -1,5 +1,5 @@
 ---
-title: "Untitled"
+title: "Análisis de mano de obra en Parque Industrial Pacífico"
 author: "José Eduardo Jaramillo Barrera"
 date: "21 de marzo de 2018"
 output: pdf_document
@@ -183,7 +183,7 @@ tjpea <- left_join(maptj, dbc, by = "CVE_AGEB")
 
 
 
-```{r}
+```{r }
 
 ggmap(denue_map) + 
   geom_sf(data = tjpea, inherit.aes = FALSE, aes(fill = -sumpea)) +

@@ -1,9 +1,5 @@
-############################################################
-########## SCRIPT-DENUE-INEGI ##############################
-############################################################
-
 ##########################################################################
-### SCRIPT PARA AGRUPAR EMPRESAS EN CLUSTERS EN TIJUANA ##################
+######################## SCRIPT-DENUE-INEGI ##############################
 ##########################################################################
 
 library(easypackages)
@@ -13,11 +9,17 @@ libraries(my_packages)
 
 # Descarga la base de datos de DENUE
 
-datos <- read_csv("/Users/pvelazquez/Documents/PROYECTOS/INDUSTRIAL/DATOS/02_0317/denue_02_csv/conjunto_de_datos/denue_inegi_02_.csv")
+dbdenue <- read_csv("/Users/pvelazquez/Documents/PROYECTOS/INDUSTRIAL/DATOS/02_0317/denue_02_csv/conjunto_de_datos/denue_inegi_02_.csv")
 
-# Limpiar la base de datos DENUE
+# Descarga la base de datos del CENSO
 
-denue <- datos %>%
+dbcenso <- read.csv("C:/Users/pvelazquez/Desktop/CENSO VIVIENDA/resultados_ageb_urbana_02_cpv2010/conjunto_de_datos/resultados_ageb_urbana_02_cpv2010.csv", na.strings = c("*"))
+
+##########################################################################
+### SCRIPT PARA AGRUPAR EMPRESAS EN CLUSTERS EN TIJUANA ##################
+##########################################################################
+
+denue <- dbdenue %>%
   dplyr::select(latitud, longitud ,cve_loc,municipio ,id, nom_estab, raz_social, codigo_act, nombre_act, per_ocu, tipo_vial, tipo_asent, nomb_asent, tipoCenCom, nom_CenCom, localidad, ageb, manzana, fecha_alta)  %>%
   separate(fecha_alta, into = c("mes_alta", "year_alta"), sep = "\\s") %>%
   mutate(latitud = as.numeric(latitud),
@@ -32,29 +34,88 @@ denue <- datos %>%
   mutate(latitud = LATITUD,
          longitud = LONGITUD) %>%
   rename("y" = LATITUD,
-         "x" = LONGITUD) %>%
+         "x" = LONGITUD,
+         "CVE_AGEB" = "AGEB") %>%
   droplevels()
 
+##########################################################################
+############ SCRIPT PARA LIMPIAR LA BASE DE DATOS DEL CENSO ##############
+##########################################################################
 
+dbf <- dbcenso %>%
+  rename_all(funs(str_to_lower(.))) %>%
+  filter(mun == 4 & nom_loc %in% c("Total AGEB urbana")) %>%
+  distinct(ageb)
 
-denue_sf <- st_as_sf(denue, coords = c("x", "y"), crs = "+proj=longlat +ellps=WGS84 +datum=WGS84") %>%
+##########################################################################
+#### SCRIPT PARA OBTENER LAS COORDENADAS DE LOS AGEB EN TIJUANA  #########
+##########################################################################
+
+coord_agebtj <- dbdenue %>%
+  filter(municipio %in% "Tijuana") %>%
+  select(latitud, longitud, ageb) %>%
+  group_by(ageb) %>%
+  summarise("y" = mean(latitud),
+            "x" = mean(longitud))   %>%
+  distinct()
+  
+#########################################################################
+### SCRIPT PARA UNIR LOS DATOS DEL CENSO CON DENUE PARA #################
+### OBTENER LAS COORDENADAS DE LOS AGEB #################################
+#########################################################################
+  
+
+dbgen <- left_join(dbf, coord_agebtj, by = c("ageb")) %>%
+  filter(!is.na(y))
+
+##########################################################################
+#### SCRIPT PARA CONVERTIR LOS DATOS COMBINADOS DEL CENSO Y LA DENUE A ###
+#### ESPACIALES ##########################################################
+##########################################################################
+
+denue_sf <- st_as_sf(dbgen, coords = c("x", "y"), crs = "+proj=longlat +ellps=WGS84 +datum=WGS84") %>%
   st_transform(crs = 4326)
+
+# Calcula la matriz de distancias
+
+mdist <- st_distance(denue_sf)
+
+# Establece los parametros del algoritmo de clusters
+
+hc <- hclust(as.dist(mdist), method = "complete")
+
+# Establece la distancia en metros donde se corta el algoritmo que clasifica
+# los clusters
+
+d = 9000
+
+# Agrega la columna de clusters a los datos
+
+denue_sf$clust <- cutree(hc, h = d)
+
+##########################################################################
+#### SCRIPT PARA OBTENER EL MAPA DE TIJUANA ##############################
+##########################################################################
 
 denue_box <- st_bbox(denue_sf)
 
 denue_location <- c(lon = -116.944333,
                     lat = 32.491566)
 
+denue_map <- get_map(denue_location, zoom = 11)
 
-denue_map <- get_map(denue_location)
+##########################################################################
+#### SCRIPT PARA OBTENER EL MAPA DE TIJUANA ##############################
+##########################################################################
 
-mdist <- st_distance(denue_sf)
+ggmap(denue_map) + 
+  geom_sf(data = denue_sf, mapping = aes(fill = pea), inherit.aes = FALSE)
 
-hc <- hclust(as.dist(mdist), method = "complete")
 
-d = 8000
 
-denue_sf$clust <- cutree(hc, h = d)
+
+
+
 
 # Selecciona las coordenadas de las empresas que son utiles para el análisis
 
@@ -140,44 +201,6 @@ denuem <- st_join(maptj, denue)
 maptj <- st_transform(maptj, crs = "+init=epsg:4326")
 
 
-#############################################################################
-### SCRIPT PARA INCLUIR DATOS DEL CENSO ADEMAS DE DENUE    ##################
-#############################################################################
-
-
-dbcenso <- read_excel("C:/Users/pvelazquez/Desktop/CENSO VIVIENDA/RESAGEBURB_02XLS10/RESAGEBURB_02XLS10.xls")
-
-dbc <- dbcenso %>%
-  filter(MUN %in% "004") %>%
-  mutate_all(funs(str_replace_all(., "\\*", "NA"))) %>%
-  filter(!LOC %in% c("0000") & !AGEB %in% c("0000") & !MZA %in% c("000")) %>%
-  select(NOM_ENT, NOM_LOC, AGEB, MZA, POBTOT, POBMAS, POBFEM, P_15YMAS, 
-         P_15YMAS_M, P_15YMAS_F, REL_H_M, POB15_64, GRAPROES, GRAPROES_M, GRAPROES_F, TOTHOG, VIVTOT,
-         VPH_1CUART, VPH_2CUART, VPH_3YMASC) %>%
-  mutate(POBTOT     = as.numeric(POBTOT) , 
-         POBMAS     = as.numeric(POBMAS), 
-         POBFEM     = as.numeric(POBFEM), 
-         P_15YMAS   = as.numeric(P_15YMAS), 
-         P_15YMAS_M = as.numeric(P_15YMAS_M), 
-         P_15YMAS_F = as.numeric(P_15YMAS_F), 
-         REL_H_M    = as.numeric(REL_H_M), 
-         POB15_64   = as.numeric(POB15_64), 
-         GRAPROES   = as.numeric(GRAPROES), 
-         GRAPROES_M = as.numeric(GRAPROES_M), 
-         GRAPROES_F = as.numeric(GRAPROES_F), 
-         TOTHOG     = as.numeric(TOTHOG), 
-         VIVTOT     = as.numeric(VIVTOT),
-         VPH_1CUART = as.numeric(VPH_1CUART), 
-         VPH_2CUART = as.numeric(VPH_2CUART), 
-         VPH_3YMASC = as.numeric(VPH_3YMASC),
-         CVE_AGEB   = as.character(AGEB),
-         spob = sum(POBTOT)) %>%
-  group_by(AGEB) %>%
-  summarise(sumapob = sum(POBTOT)) %>%
-  rename(., "CVE_AGEB" = "AGEB")
-
-
-tijuana <- left_join(maptj, dbc, by = "CVE_AGEB")
 
 
 ############################################################################

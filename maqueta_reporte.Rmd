@@ -168,12 +168,12 @@ dbc <- dbcenso %>%
   summarise(sumpea = sum(PEA)) %>%
   rename(., "CVE_AGEB" = "AGEB")
 
-centroid <- denue_sf %>%
+centroid <- dbdenue %>%
   mutate(counter = 1,
          empresas = sum(counter)) %>%
   group_by(clust) %>%
-  summarise(m.x = mean(latitud, na.rm = TRUE),
-            m.y = mean(longitud, na.rm = TRUE),
+  summarise(m.x = mean(lat, na.rm = TRUE),
+            m.y = mean(long, na.rm = TRUE),
             mn = n()) %>%
   st_centroid()
 

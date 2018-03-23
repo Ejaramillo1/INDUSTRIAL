@@ -3,8 +3,7 @@
 ##########################################################################
 
 library(easypackages)
-my_packages <- c("tidyverse", "readxl", "lubridate", "sp", "geosphere", "scales")
-my_packages2 <- c("tidyverse", "ggmap", "sf", "lubridate")
+my_packages <- c("tidyverse", "readxl", "lubridate", "geosphere", "scales", "sf", "ggmap")
 libraries(my_packages)
 
 # Descarga la base de datos de DENUE
@@ -15,11 +14,22 @@ dbdenue <- read_csv("/Users/pvelazquez/Documents/PROYECTOS/INDUSTRIAL/DATOS/02_0
 
 dbcenso <- read.csv("C:/Users/pvelazquez/Desktop/CENSO VIVIENDA/resultados_ageb_urbana_02_cpv2010/conjunto_de_datos/resultados_ageb_urbana_02_cpv2010.csv", na.strings = c("*"))
 
-##########################################################################
-### SCRIPT PARA AGRUPAR EMPRESAS EN CLUSTERS EN TIJUANA ##################
-##########################################################################
+#########################################################################
+### SCRIPT PARA OBTENER LATITUD Y LONGITUD DE LOS AGEB #################
+#########################################################################
 
-denue <- dbdenue %>%
+denue_ageb <- dbdenue %>%
+  rename(., "CVE_AGEB" = "ageb") %>%
+  filter(municipio %in% "Tijuana") %>%
+  group_by(CVE_AGEB) %>%
+  summarise("y" = mean(latitud),
+            "x" = mean(longitud))
+
+#########################################################################
+### SCRIPT PARA AGRUPAR EMPRESAS EN CLUSTERS EN TIJUANA #################
+#########################################################################
+
+denue_sf <- dbdenue %>%
   dplyr::select(latitud, longitud ,cve_loc,municipio ,id, nom_estab, raz_social, codigo_act, nombre_act, per_ocu, tipo_vial, tipo_asent, nomb_asent, tipoCenCom, nom_CenCom, localidad, ageb, manzana, fecha_alta)  %>%
   separate(fecha_alta, into = c("mes_alta", "year_alta"), sep = "\\s") %>%
   mutate(latitud = as.numeric(latitud),
@@ -30,50 +40,22 @@ denue <- dbdenue %>%
   filter(municipio %in% "Tijuana" & 
            codigo_industria %in% c("31", "32", "33") &
            per_ocu %in% c("101 a 250 personas", "251 y más personas")) %>%
-  rename_all(funs(str_to_upper(.))) %>%
-  mutate(latitud = LATITUD,
-         longitud = LONGITUD) %>%
+  rename_all(funs(str_to_lower(.))) %>%
+  mutate(LATITUD = latitud,
+         LONGITUD = longitud) %>%
   rename("y" = LATITUD,
          "x" = LONGITUD,
-         "CVE_AGEB" = "AGEB") %>%
+         "CVE_AGEB" = "ageb") %>%
+  select(x, y, CVE_AGEB) %>%
   droplevels()
 
-##########################################################################
-############ SCRIPT PARA LIMPIAR LA BASE DE DATOS DEL CENSO ##############
-##########################################################################
-
-dbf <- dbcenso %>%
-  rename_all(funs(str_to_lower(.))) %>%
-  filter(mun == 4 & nom_loc %in% c("Total AGEB urbana")) %>%
-  distinct(ageb)
-
-##########################################################################
-#### SCRIPT PARA OBTENER LAS COORDENADAS DE LOS AGEB EN TIJUANA  #########
-##########################################################################
-
-coord_agebtj <- dbdenue %>%
-  filter(municipio %in% "Tijuana") %>%
-  select(latitud, longitud, ageb) %>%
-  group_by(ageb) %>%
-  summarise("y" = mean(latitud),
-            "x" = mean(longitud))   %>%
-  distinct()
-  
-#########################################################################
-### SCRIPT PARA UNIR LOS DATOS DEL CENSO CON DENUE PARA #################
-### OBTENER LAS COORDENADAS DE LOS AGEB #################################
-#########################################################################
-  
-
-dbgen <- left_join(dbf, coord_agebtj, by = c("ageb")) %>%
-  filter(!is.na(y))
 
 ##########################################################################
 #### SCRIPT PARA CONVERTIR LOS DATOS COMBINADOS DEL CENSO Y LA DENUE A ###
 #### ESPACIALES ##########################################################
 ##########################################################################
 
-denue_sf <- st_as_sf(dbgen, coords = c("x", "y"), crs = "+proj=longlat +ellps=WGS84 +datum=WGS84") %>%
+denue_sf <- st_as_sf(denue_sf, coords = c("x", "y"), crs = "+proj=longlat +ellps=WGS84 +datum=WGS84") %>%
   st_transform(crs = 4326)
 
 # Calcula la matriz de distancias
@@ -87,34 +69,99 @@ hc <- hclust(as.dist(mdist), method = "complete")
 # Establece la distancia en metros donde se corta el algoritmo que clasifica
 # los clusters
 
-d = 9000
+d = 10000
 
 # Agrega la columna de clusters a los datos
 
 denue_sf$clust <- cutree(hc, h = d)
 
 ##########################################################################
+############ SCRIPT PARA LIMPIAR LA BASE DE DATOS DEL CENSO ##############
+##########################################################################
+
+datcenso <- dbcenso %>%
+  rename_all(funs(str_to_lower(.))) %>%
+  filter(mun == 4 & nom_loc %in% c("Total AGEB urbana")) %>%
+  rename(., "CVE_AGEB" = "ageb")
+
+#########################################################################
+### SCRIPT PARA UNIR LOS DATOS DEL CENSO CON DENUE PARA #################
+### OBTENER LAS COORDENADAS DE LOS AGEB #################################
+#########################################################################
+
+datcenso1 <- left_join(denue_sf, datcenso, by = c("CVE_AGEB")) %>%
+  filter(!is.na(nom_ent))
+
+##########################################################################
+### SCRIPT PARA LEER LOS AGEB DEFINIDOS PARA TIJUANA    ##################
+##########################################################################
+
+# Lees los datos de polígonos de AGEB de Baja California
+
+maptj <- st_read("C:/Users/pvelazquez/Google Drive/MEXICO MAPA/Baja California/conjunto de datos/02a.shp")
+
+# Filtra para los datos solo para el municipio de Tijuana
+
+maptj <- maptj %>%
+  filter(CVE_MUN == "004")
+
+# define la proyeccion de los datos
+
+maptj <- st_transform(maptj, crs = "+init=epsg:4326")
+
+# Une las dos bases de datos
+
+map_censo <- left_join(maptj, datcenso, by = c("CVE_AGEB"))
+
+
+ggplot(map_censo) + 
+  geom_sf(aes(fill = pobtot))
+
+
+
+
+
+
+
+
+
+##########################################################################
 #### SCRIPT PARA OBTENER EL MAPA DE TIJUANA ##############################
 ##########################################################################
 
-denue_box <- st_bbox(denue_sf)
-
-denue_location <- c(lon = -116.944333,
+tjlocation <- c(lon = -116.944333,
                     lat = 32.491566)
+tjmap <- get_map(tjlocation, zoom = 11, maptype = c("roadmap"))
 
-denue_map <- get_map(denue_location, zoom = 11)
+
+
 
 ##########################################################################
 #### SCRIPT PARA OBTENER EL MAPA DE TIJUANA ##############################
 ##########################################################################
 
-ggmap(denue_map) + 
-  geom_sf(data = denue_sf, mapping = aes(fill = pea), inherit.aes = FALSE)
+peadb <- dbcenso %>%
+  select(pea, clust) %>%
+  group_by(clust) %>%
+  summarise(spea = sum(pea, na.rm = TRUE)) %>%
+  st_centroid()
+
+ggmap(tjmap) +
+  geom_sf(data = peadb, mapping = aes(colour = factor(clust), size = spea), inherit.aes = FALSE)
 
 
 
 
+  
 
+centroid <- denue %>%
+  mutate(counter = 1,
+         empresas = sum(counter)) %>%
+  group_by(clust) %>%
+  summarise(m.x = mean(latitud, na.rm = TRUE),
+            m.y = mean(longitud, na.rm = TRUE),
+            mn = n()) %>%
+  st_centroid()
 
 
 # Selecciona las coordenadas de las empresas que son utiles para el análisis
@@ -176,29 +223,6 @@ ggmap(tj.map) +
 rm(coordenadas)
 rm(hc)
 rm(mdist)
-
-
-##########################################################################
-### SCRIPT PARA LEER LOS AGEB DEFINIDOS PARA TIJUANA    ##################
-##########################################################################
-
-
-# Lees los datos de polígonos de AGEB de Baja California
-
-maptj <- st_read("C:/Users/pvelazquez/Google Drive/MEXICO MAPA/Baja California/conjunto de datos/02a.shp")
-
-# Filtra para los datos solo para el municipio de Tijuana
-
-maptj <- maptj %>%
-  filter(CVE_MUN == "004")
-
-# Une las dos bases de datos
-
-denuem <- st_join(maptj, denue)
-
-# define la proyeccion de los datos
-
-maptj <- st_transform(maptj, crs = "+init=epsg:4326")
 
 
 

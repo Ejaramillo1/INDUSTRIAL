@@ -82,7 +82,10 @@ denue_sf$clust <- cutree(hc, h = d)
 datcenso <- dbcenso %>%
   rename_all(funs(str_to_lower(.))) %>%
   filter(mun == 4 & nom_loc %in% c("Total AGEB urbana")) %>%
-  rename(., "CVE_AGEB" = "ageb")
+  rename(., "CVE_AGEB" = "ageb",
+         "CVE_LOC" = "loc",
+         "CVE_ENT" = "ï..entidad",
+         "CVE_MUN" = "mun")
 
 #########################################################################
 ### SCRIPT PARA UNIR LOS DATOS DEL CENSO CON DENUE PARA #################

@@ -116,18 +116,6 @@ maptj <- st_transform(maptj, crs = "+init=epsg:4326")
 
 map_censo <- left_join(maptj, datcenso, by = c("CVE_AGEB"))
 
-
-ggplot(map_censo) + 
-  geom_sf(aes(fill = pobtot))
-
-
-
-
-
-
-
-
-
 ##########################################################################
 #### SCRIPT PARA OBTENER EL MAPA DE TIJUANA ##############################
 ##########################################################################
@@ -136,23 +124,44 @@ tjlocation <- c(lon = -116.944333,
                     lat = 32.491566)
 tjmap <- get_map(tjlocation, zoom = 11, maptype = c("roadmap"))
 
+##############################################################################
+#### SCRIPT UNIR LOS DATOS DE DENUE CON EL MAPA DE LOS POLIGONOS POR AGEB ####
+##############################################################################
+
+map_denue <- st_join(maptj, denue_sf) %>%
+  mutate(clust = as.factor(clust),
+         clust = fct_recode(clust ,
+                            "Alamar"           = "1",
+                            "Pacífico-Nórdika" = "2",
+                            "Otay Industrial"  = "3",
+                            "El Florido"       = "4",
+                            "La Mesa"          = "5", 
+                            "Rosarito-Playas"  = "7",
+                            "Blvd.2000"        = "8"))
+
+ggmap(tjmap) +
+  geom_sf(data = map_denue, mapping = aes(fill = factor(clust)), inherit.aes = FALSE, na.rm = TRUE, alpha = 0.5) + 
+  ggtitle("Segmentación de empresas manufactureras en Tijuana por submercado") +
+  guides(fill = guide_legend(title = "Submercado"))
+
+ggsave("cluster.jpg")
 
 
 
-##########################################################################
-#### SCRIPT PARA OBTENER EL MAPA DE TIJUANA ##############################
-##########################################################################
+ggmap(tjmap) +
+  geom_sf(data = map_censo, mapping = aes(colour = factor(clust)), inherit.aes = FALSE)
+
+
+
+
+
+
 
 peadb <- dbcenso %>%
   select(pea, clust) %>%
   group_by(clust) %>%
   summarise(spea = sum(pea, na.rm = TRUE)) %>%
   st_centroid()
-
-ggmap(tjmap) +
-  geom_sf(data = peadb, mapping = aes(colour = factor(clust), size = spea), inherit.aes = FALSE)
-
-
 
 
   

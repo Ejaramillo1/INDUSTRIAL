@@ -75,6 +75,7 @@ d = 10000
 
 denue_sf$clust <- cutree(hc, h = d)
 
+
 ##########################################################################
 ############ SCRIPT PARA LIMPIAR LA BASE DE DATOS DEL CENSO ##############
 ##########################################################################
@@ -92,7 +93,7 @@ datcenso <- dbcenso %>%
 ### OBTENER LAS COORDENADAS DE LOS AGEB #################################
 #########################################################################
 
-datcenso1 <- left_join(denue_sf, datcenso, by = c("CVE_AGEB")) %>%
+censo_spat_point <- left_join(denue_sf, datcenso, by = c("CVE_AGEB")) %>%
   filter(!is.na(nom_ent))
 
 ##########################################################################
@@ -114,7 +115,8 @@ maptj <- st_transform(maptj, crs = "+init=epsg:4326")
 
 # Une las dos bases de datos
 
-map_censo <- left_join(maptj, datcenso, by = c("CVE_AGEB"))
+map_censo <- left_join(maptj, datcenso, by = c("CVE_AGEB")) %>%
+  filter(!is.na(pea) )
 
 ##########################################################################
 #### SCRIPT PARA OBTENER EL MAPA DE TIJUANA ##############################
@@ -124,9 +126,9 @@ tjlocation <- c(lon = -116.944333,
                     lat = 32.491566)
 tjmap <- get_map(tjlocation, zoom = 11, maptype = c("roadmap"))
 
-##############################################################################
-#### SCRIPT UNIR LOS DATOS DE DENUE CON EL MAPA DE LOS POLIGONOS POR AGEB ####
-##############################################################################
+###########################################################################
+#### SCRIPT UNIR LOS DATOS DE DENUE CON EL MAPA DE LOS POLIGONOS POR AGEB #
+###########################################################################
 
 map_denue <- st_join(maptj, denue_sf) %>%
   mutate(clust = as.factor(clust),
@@ -139,25 +141,74 @@ map_denue <- st_join(maptj, denue_sf) %>%
                             "Rosarito-Playas"  = "7",
                             "Blvd.2000"        = "8"))
 
-ggmap(tjmap) +
-  geom_sf(data = map_denue, mapping = aes(fill = factor(clust)), inherit.aes = FALSE, na.rm = TRUE, alpha = 0.5) + 
-  ggtitle("Segmentación de empresas manufactureras en Tijuana por submercado") +
-  guides(fill = guide_legend(title = "Submercado"))
 
-ggsave("cluster.jpg")
+ggmap(tjmap) + 
+  geom_sf(data = map_denue, inherit.aes = FALSE)
 
 
 
-ggmap(tjmap) +
-  geom_sf(data = map_censo, mapping = aes(colour = factor(clust)), inherit.aes = FALSE)
+##############################################################################
+#### SCRIPT PARA CALCULAR EL CENTROIDE DE LOS SUBMERCADOS ####################
+##############################################################################
+
+centroid_denue <- denue_sf %>%
+  mutate(counter = 1,
+         empresas = sum(counter)) %>%
+  group_by(clust) %>%
+  summarise(mn = n()) %>%
+  st_centroid()
+
+
+##############################################################################
+#### SCRIPT PARA CONVERTIR LOS DATOS DE PEA EN CATEGORICOS ###################
+##############################################################################
+
+xs  <- quantile(map_censo$pea, c(0, 1/4, 2/4, 3/4, 1))
+xs[1] <- xs[1] - .00005
+map_censo1 <- map_censo %>%
+  mutate(category = cut(pea, breaks = xs, labels = c("low", "middle", "above middle", "high")))
+
+
+##############################################################################
+#### SCRIPT PARA CALCULAR EL CENTROIDE DE LOS SUBMERCADOS ####################
+##############################################################################
+
+centroid_censo <- censo_spat_point %>%
+  group_by(clust) %>%
+  summarise(pobtot = sum(pobtot)) %>%
+  st_centroid()
+
+
+xd <- quantile(centroid_censo$pobtot, c(0,1/4,2/4,3/4,1))
+xd[1] <- xd[1] - .00005
+
+centroid_censo1 <- centroid_censo %>%
+  mutate(category = cut(pobtot, breaks = xd, labels = c("low", "middle", "above middle", "high")))
+
+
+ggmap(tjmap) + 
+  geom_sf(data = map_censo1, inherit.aes = FALSE, mapping = aes(fill = category)) + 
+  scale_fill_manual(values = c("#2e9fd9", "#f6932f", "#6ebe4c", "#ca2128")) + 
+  geom_sf(data = centroid_censo1, inherit.aes = FALSE, mapping = aes(size = category), alpha = 0.6) + 
+  scale_size_discrete(range = c(3,21))
+
+
+
+make_bbox()
 
 
 
 
+lon <- c(-116.949445)
+lat <- c(32.497913)
 
 
+tjmap <- get_map(location = c(lon = mean(lon), lat = mean(lat)), maptype = c("roadmap"), zoom = 11)
 
-peadb <- dbcenso %>%
+ggmap(tjmap)
+
+
+wpeadb <- dbcenso %>%
   select(pea, clust) %>%
   group_by(clust) %>%
   summarise(spea = sum(pea, na.rm = TRUE)) %>%
@@ -166,15 +217,9 @@ peadb <- dbcenso %>%
 
   
 
-centroid <- denue %>%
-  mutate(counter = 1,
-         empresas = sum(counter)) %>%
+centroid <- denue_sf %>%
   group_by(clust) %>%
-  summarise(m.x = mean(latitud, na.rm = TRUE),
-            m.y = mean(longitud, na.rm = TRUE),
-            mn = n()) %>%
   st_centroid()
-
 
 # Selecciona las coordenadas de las empresas que son utiles para el análisis
 
@@ -219,13 +264,6 @@ library(sf)
 
 denue <- st_as_sf(denue, coords = c("x", "y"), crs = pr2) %>%
   st_transform(crs = "+init=epsg:4326" )
-
-tj_bbox <- st_bbox(denue)
-
-tj_location <- c(lon = tj_bbox["xmin"]+tj_bbox["xmax"]/2,
-                 lat = tj_bbox["ymin"] + tj_bbox["ymax"]/2)
-
-tj.map <- get_map(Tijuana)
 
 
 ggmap(tj.map) +
@@ -277,13 +315,6 @@ ggplot(denue_map) +
 ggsave("pop.jpg")
 
 
-centroid <- denue_sf %>%
-  mutate(counter = 1,
-         empresas = sum(counter)) %>%
-  group_by(clust) %>%
-  summarise(m.x = mean(latitud, na.rm = TRUE),
-            m.y = mean(longitud, na.rm = TRUE),
-            mn = n())
 
 
 ggmap(denue_map) + 

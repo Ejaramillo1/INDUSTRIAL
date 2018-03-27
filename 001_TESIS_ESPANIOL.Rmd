@@ -1,0 +1,168 @@
+---
+bibliography: C:/Users/Cadena Redes/Documents/Tesis/TESIS ESPANIOL/library.bib
+csl: apa.csl
+fontsize: 11pt
+header-includes:
+  - \usepackage{placeins}
+  - \usepackage{dcolumn}
+  - \usepackage{booktabs}
+  - \usepackage{setspace}
+  - \usepackage{chngcntr}
+  - \onehalfspacing
+  - \counterwithin{figure}{section}
+  - \counterwithin{table}{section}
+  - \DeclareUnicodeCharacter{202F}{\,}
+  - \usepackage{multicol}
+  - \usepackage{multirow}
+  - \usepackage[utf8]{inputenc}
+  - \usepackage{longtable}
+  - \usepackage{array}
+  - \usepackage{rotating}
+  - \usepackage{amsmath}
+  - \usepackage[center]{caption}
+  - \usepackage[spanish, activeacute]{babel}
+  - \newcommand{\Int}{\int\limits}
+  - \newcommand{\thickhat}[1]{\mathbf{\hat{\text{$#1$}}}}
+  - \newcommand{\thickbar}[1]{\mathbf{\bar{\text{$#1$}}}}
+  - \newcommand{\thicktilde}[1]{\mathbf{\tilde{\text{$#1$}}}}
+  - \usepackage{xypic}
+  - \usepackage{caption}
+  - \usepackage{subcaption}
+  - \usepackage[font=small, labelfont=bf] {caption}
+linkcolor: black
+output:
+  pdf_document:
+    fig_caption: yes
+    number_sections: yes
+  urlcolor: black
+---
+
+```{r include=FALSE}
+library(easypackages)
+my_packages <- c("tidyverse", "foreign", "broom", "texreg", "xtable", "knitr", "captioner", "margins", "stargazer")
+libraries(my_packages)
+
+```
+
+```{r include=FALSE}
+knitr::opts_chunk$set(fig.path = "figures/", echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+
+```{r include=FALSE}
+load(file = "datos11092017.RData" )
+```
+
+\pagenumbering{gobble}
+\newpage
+```{r child = "002_portada.Rmd"}
+
+```
+\pagenumbering{roman}
+
+\newpage
+```{r child = "003_extracto.Rmd"}
+
+```
+
+
+\newpage
+\FloatBarrier
+```{r child = "004_agradecimientos.Rmd"}
+
+```
+
+\newpage
+\FloatBarrier
+
+
+\pagenumbering{gobble}
+\tableofcontents
+\setcounter{tocdepth}{4}
+\newpage
+
+\listoffigures
+\addcontentsline{toc}{section}{Indice de gráficos}
+
+\newpage
+\FloatBarrier
+```{r child = "005_list_of_tables.Rmd"}
+
+```
+
+\newpage
+\FloatBarrier
+
+```{r chidl = "006_list_of_figures.Rmd"}
+
+```
+
+
+\pagenumbering{arabic}
+\newpage
+\FloatBarrier
+```{r child = "007_intro.Rmd"}
+  
+```
+
+\newpage
+\FloatBarrier
+```{r child = "008_capitulo_1.Rmd"}
+
+```
+
+\newpage
+\FloatBarrier
+```{r child = "009_capitulo_2.Rmd"}
+
+```
+
+\newpage
+\FloatBarrier
+```{r child = "010_capitulo_3.Rmd"}
+
+```
+
+\newpage
+\FloatBarrier
+```{r child = "011_capitulo_4.Rmd"}
+
+```
+
+\newpage
+\FloatBarrier
+```{r child = "012_capitulo_5.Rmd"}
+
+```
+
+\newpage
+\FloatBarrier
+```{r child = "013_capitulo_6.Rmd"}
+
+```
+\newpage
+\FloatBarrier
+```{r child = "014_conclusiones.Rmd"}
+
+```
+
+\newpage
+\FloatBarrier
+
+```{r child = "015_anexos_1.Rmd"}
+
+```
+
+\newpage
+\FloatBarrier
+
+```{r child = "016_anexos_2.Rmd"}
+
+```
+
+\newpage
+
+
+```{r child = "017_references.Rmd"}
+
+```

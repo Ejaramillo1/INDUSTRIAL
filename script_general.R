@@ -33,7 +33,8 @@ denue_ageb <- dbdenue %>%
   filter(municipio %in% "Tijuana") %>%
   group_by(CVE_AGEB) %>%
   summarise("y" = mean(latitud),
-            "x" = mean(longitud))
+            "x" = mean(longitud)) %>%
+  distinct(CVE_AGEB, x, y)
 
 #########################################################################
 ### SCRIPT PARA AGRUPAR EMPRESAS EN CLUSTERS EN TIJUANA #################
@@ -205,9 +206,9 @@ map_school <- serv_pub %>%
 
 ggmap(tjmap) +
   geom_sf(data = map_denue, mapping = aes(fill = clust), inherit.aes = FALSE, alpha = 0.6, size = 0.1)+ 
-  scale_y_continuous(limits = c(32.397, 32.56)) +
-  theme(legend.position = "none") + 
-  ggtitle("Distribución Industrial en Tijuana") %>%
+  scale_y_continuous(limits = c(32.397, 32.56)) + 
+  ggtitle("Distribución Industrial en Tijuana")
+
   dev.off()
 
 
@@ -219,11 +220,11 @@ ggsave("aglomeraciones_industriales.jpg")
 ggmap(tjmap) + 
   geom_sf(data = map_censo1, inherit.aes = FALSE, mapping = aes(fill = category), size = 0.1) + 
   scale_fill_manual(values = c("#2e9fd9", "#f6932f", "#6ebe4c", "#ca2128")) + 
-  geom_sf(data = centroid_censo1, inherit.aes = FALSE, mapping = aes(size = pobtot), alpha = 0.6) +
-  scale_size_discrete(range = c(3,15), breaks = pretty_breaks(n = 4)) + 
+  geom_sf(data = centroid_censo1, inherit.aes = FALSE, mapping = aes(size = pobtot, colour = factor(clust)), alpha = 0.9) +
+  scale_size_discrete(range = c(3,25), breaks = pretty_breaks(n = 4)) + 
   scale_y_continuous(limits = c(32.397, 32.56)) +
   theme(legend.position = "none") + 
-  ggtitle("Población Económicamente Activa en Tijuana") %>%
+  ggtitle("Población Económicamente Activa en Tijuana")
   dev.off()
 
 ggsave("poblacion_economicamente_activa.jpg")
@@ -233,11 +234,11 @@ ggsave("poblacion_economicamente_activa.jpg")
 ggmap(tjmap) + 
   geom_sf(data = map_censo2, inherit.aes = FALSE, mapping = aes(fill = category), size = 0.1) + 
   scale_fill_manual(values = c("#2e9fd9", "#f6932f", "#6ebe4c", "#ca2128")) + 
-  geom_sf(data = centroid_censo1, inherit.aes = FALSE, mapping = aes(size = pobtot), alpha = 0.6) +
+  geom_sf(data = centroid_censo1, inherit.aes = FALSE, mapping = aes(fill = clust),size = pobtot, alpha = 0.6) +
   scale_size_discrete(range = c(3,15), breaks = pretty_breaks(n = 4)) + 
   scale_y_continuous(limits = c(32.397, 32.56)) +
   theme(legend.position = "none") + 
-  ggtitle("Población de 15 años y más con secundaria incompleta") %>%
+  ggtitle("Población de 15 años y más con secundaria incompleta")
   dev.off()
 
 ggsave("poblacion_15_anios_no_educ.jpg")
@@ -254,7 +255,7 @@ ggmap(tjmap) +
   geom_sf(data = centroid_censo1, inherit.aes = FALSE, mapping = aes(size = pobtot), alpha = 0.6)  +
   scale_size_discrete(range = c(3,15), breaks = pretty_breaks(n = 4)) + 
   theme(legend.position = "none") +
-  ggtitle("Distribución geográfica de escuelas en Tijuana") %>%
+  ggtitle("Distribución geográfica de escuelas en Tijuana")
   dev.off()
 
 
@@ -269,10 +270,23 @@ ggmap(tjmap) +
   scale_size_discrete(range = c(3,15), breaks = pretty_breaks(n = 4)) +
   scale_y_continuous(limits = c(32.397, 32.56)) + 
   theme(legend.position = "none") +
-  ggtitle("Distribución de hospitales en Tijuana") %>%
+  ggtitle("Distribución de hospitales en Tijuana")
   dev.off()
 
 ggsave("hospitales_tijuana.jpg")
+
+
+# Grafica de poblacion economicamente activa por submercado
+
+
+censo_spat_point %>%
+  select(clust, pobtot) %>%
+  group_by(clust) %>%
+  summarise(spob = sum(pobtot, na.rm = TRUE)) %>%
+  as_tibble() %>%
+  ggplot() +
+  geom_col(aes(x= clust , y = spob))
+  
 
 
 

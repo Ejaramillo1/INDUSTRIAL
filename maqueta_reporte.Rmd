@@ -235,7 +235,8 @@ map_school <- serv_pub %>%
 ggmap(tjmap) +
   geom_sf(data = map_denue, mapping = aes(fill = clust), inherit.aes = FALSE, alpha = 0.6, size = 0.1)+ 
   scale_y_continuous(limits = c(32.397, 32.56)) +
-  ggtitle("Distribución Industrial en Tijuana")
+  ggtitle("Distribución Industrial en Tijuana") %>%
+  dev.off()
   
 ```
 
@@ -251,7 +252,8 @@ ggmap(tjmap) +
   geom_sf(data = centroid_censo1, inherit.aes = FALSE, mapping = aes(size = pobtot), alpha = 0.6) +
   scale_size_discrete(range = c(3,15), breaks = pretty_breaks(n = 4)) + 
   scale_y_continuous(limits = c(32.397, 32.56)) +
-  ggtitle("Población Económicamente Activa en Tijuana")
+  ggtitle("Población Económicamente Activa en Tijuana") %>%
+  dev.off()
 
 ```
 
@@ -265,9 +267,8 @@ ggmap(tjmap) +
   geom_sf(data = centroid_censo1, inherit.aes = FALSE, mapping = aes(size = pobtot), alpha = 0.6) +
   scale_size_discrete(range = c(3,15), breaks = pretty_breaks(n = 4)) + 
   scale_y_continuous(limits = c(32.397, 32.56)) +
-  ggtitle("Población de 15 años y más con secundaria incompleta")
-
-
+  ggtitle("Población de 15 años y más con secundaria incompleta") %>%
+  dev.off()
 
 ```
 
@@ -285,7 +286,8 @@ ggmap(tjmap) +
   geom_sf(data = centroid_censo1, inherit.aes = FALSE, mapping = aes(size = pobtot), alpha = 0.6)  +
   scale_size_discrete(range = c(3,15), breaks = pretty_breaks(n = 4)) + 
   theme(legend.position = "none") +
-  ggtitle("Distribución geográfica de escuelas en Tijuana")
+  ggtitle("Distribución geográfica de escuelas en Tijuana") %>%
+  dev.off()
   
 
 ```
@@ -302,7 +304,8 @@ ggmap(tjmap) +
   geom_sf(data = centroid_censo1, inherit.aes = FALSE, mapping = aes(size = pobtot), alpha = 0.6) + 
   scale_size_discrete(range = c(3,15), breaks = pretty_breaks(n = 4)) +
   scale_y_continuous(limits = c(32.397, 32.56)) + 
-  ggtitle("Distribución de hospitales en Tijuana")
+  ggtitle("Distribución de hospitales en Tijuana") %>%
+  dev.off()
 
 
 ```

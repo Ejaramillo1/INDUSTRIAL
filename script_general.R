@@ -207,7 +207,12 @@ ggmap(tjmap) +
   geom_sf(data = map_denue, mapping = aes(fill = clust), inherit.aes = FALSE, alpha = 0.6, size = 0.1)+ 
   scale_y_continuous(limits = c(32.397, 32.56)) +
   theme(legend.position = "none") + 
-  ggtitle("Distribución Industrial en Tijuana")
+  ggtitle("Distribución Industrial en Tijuana") %>%
+  dev.off()
+
+
+
+ggsave("aglomeraciones_industriales.jpg")
 
 # Población Económicamente Activa por submercado en Tijuana
 
@@ -218,7 +223,10 @@ ggmap(tjmap) +
   scale_size_discrete(range = c(3,15), breaks = pretty_breaks(n = 4)) + 
   scale_y_continuous(limits = c(32.397, 32.56)) +
   theme(legend.position = "none") + 
-  ggtitle("Población Económicamente Activa en Tijuana")
+  ggtitle("Población Económicamente Activa en Tijuana") %>%
+  dev.off()
+
+ggsave("poblacion_economicamente_activa.jpg")
 
 # Mapa de población de 15 años y más con secundaria incompleta por submercado en Tijuana
 
@@ -229,7 +237,12 @@ ggmap(tjmap) +
   scale_size_discrete(range = c(3,15), breaks = pretty_breaks(n = 4)) + 
   scale_y_continuous(limits = c(32.397, 32.56)) +
   theme(legend.position = "none") + 
-  ggtitle("Población de 15 años y más con secundaria incompleta")
+  ggtitle("Población de 15 años y más con secundaria incompleta") %>%
+  dev.off()
+
+ggsave("poblacion_15_anios_no_educ.jpg")
+
+
 
 # Mapa de Escuelas en Tijuana
 
@@ -241,7 +254,11 @@ ggmap(tjmap) +
   geom_sf(data = centroid_censo1, inherit.aes = FALSE, mapping = aes(size = pobtot), alpha = 0.6)  +
   scale_size_discrete(range = c(3,15), breaks = pretty_breaks(n = 4)) + 
   theme(legend.position = "none") +
-  ggtitle("Distribución geográfica de escuelas en Tijuana")
+  ggtitle("Distribución geográfica de escuelas en Tijuana") %>%
+  dev.off()
+
+
+ggsave("escuelas_en_tijuana.jpg")
 
 # Mapa de Hospitales en Tijuana
 
@@ -252,9 +269,10 @@ ggmap(tjmap) +
   scale_size_discrete(range = c(3,15), breaks = pretty_breaks(n = 4)) +
   scale_y_continuous(limits = c(32.397, 32.56)) + 
   theme(legend.position = "none") +
-  ggtitle("Distribución de hospitales en Tijuana")
+  ggtitle("Distribución de hospitales en Tijuana") %>%
+  dev.off()
 
-
+ggsave("hospitales_tijuana.jpg")
 
 
 

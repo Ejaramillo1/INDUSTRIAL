@@ -14,6 +14,16 @@ dbdenue <- read_csv("/Users/pvelazquez/Documents/PROYECTOS/INDUSTRIAL/DATOS/02_0
 
 dbcenso <- read.csv("C:/Users/pvelazquez/Desktop/CENSO VIVIENDA/resultados_ageb_urbana_02_cpv2010/conjunto_de_datos/resultados_ageb_urbana_02_cpv2010.csv", na.strings = c("*"))
 
+serv_pub <- st_read("C:/Users/pvelazquez/Google Drive/MEXICO MAPA/Baja California/conjunto de datos/02sip.shp")
+
+maphosp <- serv_pub %>%
+  mutate_if(., is.character, funs(stringi::stri_trans_general(.,"latin-ascii"))) %>%
+  filter(str_detect(GEOGRAFICO, "Centro") | str_detect(NOMBRE, "Hospital")) %>%
+  filter(!GEOGRAFICO %in% c("Centro Comercial")) %>%
+  filter(CVE_MUN %in% c("004")) %>%
+  st_transform(crs = "+init=epsg:4326")
+
+
 #########################################################################
 ### SCRIPT PARA OBTENER LATITUD Y LONGITUD DE LOS AGEB #################
 #########################################################################
@@ -75,7 +85,6 @@ d = 10000
 
 denue_sf$clust <- cutree(hc, h = d)
 
-
 ##########################################################################
 ############ SCRIPT PARA LIMPIAR LA BASE DE DATOS DEL CENSO ##############
 ##########################################################################
@@ -121,12 +130,13 @@ map_censo <- left_join(maptj, datcenso, by = c("CVE_AGEB")) %>%
 ##########################################################################
 #### SCRIPT PARA OBTENER EL MAPA DE TIJUANA ##############################
 ##########################################################################
+##########################################################################
 
 tjlocation <- c(lon = -116.944333,
-                    lat = 32.491566)
+                lat = 32.491566)
 tjmap <- get_map(tjlocation, zoom = 11, maptype = c("roadmap"))
 
-###########################################################################
+##########################################################################
 #### SCRIPT UNIR LOS DATOS DE DENUE CON EL MAPA DE LOS POLIGONOS POR AGEB #
 ###########################################################################
 
@@ -140,12 +150,6 @@ map_denue <- st_join(maptj, denue_sf) %>%
                             "La Mesa"          = "5", 
                             "Rosarito-Playas"  = "7",
                             "Blvd.2000"        = "8"))
-
-
-ggmap(tjmap) + 
-  geom_sf(data = map_denue, inherit.aes = FALSE)
-
-
 
 ##############################################################################
 #### SCRIPT PARA CALCULAR EL CENTROIDE DE LOS SUBMERCADOS ####################
@@ -165,8 +169,19 @@ centroid_denue <- denue_sf %>%
 
 xs  <- quantile(map_censo$pea, c(0, 1/4, 2/4, 3/4, 1))
 xs[1] <- xs[1] - .00005
+
 map_censo1 <- map_censo %>%
   mutate(category = cut(pea, breaks = xs, labels = c("low", "middle", "above middle", "high")))
+
+##############################################################################
+#### SCRIPT PARA CONVERTIR LOS DATOS DE Población de 15 y mas EN CATEGORICOS #
+##############################################################################
+
+xp  <- quantile(map_censo$p15sec_in, c(0, 1/4, 2/4, 3/4, 1), na.rm = TRUE)
+xp[1] <- xp[1] - .00005
+
+map_censo2 <- map_censo %>%
+  mutate(category = cut(p15sec_in, breaks = xp, labels = c("low", "middle", "above middle", "high")))
 
 
 ##############################################################################
@@ -183,43 +198,75 @@ xd <- quantile(centroid_censo$pobtot, c(0,1/4,2/4,3/4,1))
 xd[1] <- xd[1] - .00005
 
 centroid_censo1 <- centroid_censo %>%
-  mutate(category = cut(pobtot, breaks = xd, labels = c("low", "middle", "above middle", "high")))
+  mutate(pobtot = cut(pobtot, breaks = xd, labels = c("low", "middle", "above middle", "high")))
 
+###############################################################
+#### SCRIPT PARA REALIZAR MAPA DE ESCUELAS ####################
+###############################################################
+
+map_school <- serv_pub %>%
+  filter(CVE_MUN %in% c("004") & GEOGRAFICO %in% c("Escuela")) %>%
+  st_transform(maphosp, crs = "+init=epsg:4326")
+
+
+# Principales aglomeraciones industriales en Tijuana
+
+ggmap(tjmap) +
+  geom_sf(data = map_denue, mapping = aes(fill = clust), inherit.aes = FALSE, alpha = 0.6, size = 0.1)+ 
+  scale_y_continuous(limits = c(32.397, 32.56)) +
+  theme(legend.position = "none") + 
+  ggtitle("Distribución Industrial en Tijuana")
+
+# Población Económicamente Activa por submercado en Tijuana
 
 ggmap(tjmap) + 
-  geom_sf(data = map_censo1, inherit.aes = FALSE, mapping = aes(fill = category)) + 
+  geom_sf(data = map_censo1, inherit.aes = FALSE, mapping = aes(fill = category), size = 0.1) + 
   scale_fill_manual(values = c("#2e9fd9", "#f6932f", "#6ebe4c", "#ca2128")) + 
-  geom_sf(data = centroid_censo1, inherit.aes = FALSE, mapping = aes(size = category), alpha = 0.6) + 
-  scale_size_discrete(range = c(3,21))
+  geom_sf(data = centroid_censo1, inherit.aes = FALSE, mapping = aes(size = pobtot), alpha = 0.6) +
+  scale_size_discrete(range = c(3,15), breaks = pretty_breaks(n = 4)) + 
+  scale_y_continuous(limits = c(32.397, 32.56)) +
+  theme(legend.position = "none") + 
+  ggtitle("Población Económicamente Activa en Tijuana")
+
+# Mapa de población de 15 años y más con secundaria incompleta por submercado en Tijuana
+
+ggmap(tjmap) + 
+  geom_sf(data = map_censo2, inherit.aes = FALSE, mapping = aes(fill = category), size = 0.1) + 
+  scale_fill_manual(values = c("#2e9fd9", "#f6932f", "#6ebe4c", "#ca2128")) + 
+  geom_sf(data = centroid_censo1, inherit.aes = FALSE, mapping = aes(size = pobtot), alpha = 0.6) +
+  scale_size_discrete(range = c(3,15), breaks = pretty_breaks(n = 4)) + 
+  scale_y_continuous(limits = c(32.397, 32.56)) +
+  theme(legend.position = "none") + 
+  ggtitle("Población de 15 años y más con secundaria incompleta")
+
+# Mapa de Escuelas en Tijuana
+
+ggmap(tjmap) + 
+  geom_sf(data = maptj, inherit.aes = FALSE, alpha = 0.2, size = 0.1) +
+  geom_sf(data = map_school, inherit.aes = FALSE, alpha = 0.6, mapping = aes(colour = GEOGRAFICO), size = 1.5) + 
+  scale_color_manual(values = c("#2e9fd9")) + 
+  scale_y_continuous(limits = c(32.397, 32.56)) + 
+  geom_sf(data = centroid_censo1, inherit.aes = FALSE, mapping = aes(size = pobtot), alpha = 0.6)  +
+  scale_size_discrete(range = c(3,15), breaks = pretty_breaks(n = 4)) + 
+  theme(legend.position = "none") +
+  ggtitle("Distribución geográfica de escuelas en Tijuana")
+
+# Mapa de Hospitales en Tijuana
+
+ggmap(tjmap) + 
+  geom_sf(data = maptj, inherit.aes = FALSE, alpha = 0.2, size = 0.1) + 
+  geom_sf(data = maphosp, inherit.aes = FALSE, colour = "blue", size = 1.5) + 
+  geom_sf(data = centroid_censo1, inherit.aes = FALSE, mapping = aes(size = pobtot), alpha = 0.6) + 
+  scale_size_discrete(range = c(3,15), breaks = pretty_breaks(n = 4)) +
+  scale_y_continuous(limits = c(32.397, 32.56)) + 
+  theme(legend.position = "none") +
+  ggtitle("Distribución de hospitales en Tijuana")
 
 
 
-make_bbox()
 
 
 
-
-lon <- c(-116.949445)
-lat <- c(32.497913)
-
-
-tjmap <- get_map(location = c(lon = mean(lon), lat = mean(lat)), maptype = c("roadmap"), zoom = 11)
-
-ggmap(tjmap)
-
-
-wpeadb <- dbcenso %>%
-  select(pea, clust) %>%
-  group_by(clust) %>%
-  summarise(spea = sum(pea, na.rm = TRUE)) %>%
-  st_centroid()
-
-
-  
-
-centroid <- denue_sf %>%
-  group_by(clust) %>%
-  st_centroid()
 
 # Selecciona las coordenadas de las empresas que son utiles para el análisis
 

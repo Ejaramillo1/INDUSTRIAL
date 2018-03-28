@@ -1,11 +1,11 @@
 ---
-title: "Maqueta anÃ¡lisis"
-author: "JosÃ© Eduardo Jaramillo Barrera"
+title: "Maqueta analisis"
+author: "Jose Eduardo Jaramillo Barrera"
 date: "21 de marzo de 2018"
 output:
+  pdf_document: default
   html_document:
     df_print: paged
-  pdf_document: default
 header-includes: \usepackage[spanish, activeacute]{babel}
 ---
 
@@ -28,8 +28,14 @@ dbdenue <- read_csv("/Users/pvelazquez/Documents/PROYECTOS/INDUSTRIAL/DATOS/02_0
 
 dbcenso <- read.csv("C:/Users/pvelazquez/Desktop/CENSO VIVIENDA/resultados_ageb_urbana_02_cpv2010/conjunto_de_datos/resultados_ageb_urbana_02_cpv2010.csv", na.strings = c("*"))
 
-maphosp <- st_read("C:/Users/pvelazquez/Google Drive/MEXICO MAPA/Baja California/conjunto de datos/02sip.shp")
+serv_pub <- st_read("C:/Users/pvelazquez/Google Drive/MEXICO MAPA/Baja California/conjunto de datos/02sip.shp")
 
+maphosp <- serv_pub %>%
+  mutate_if(., is.character, funs(stringi::stri_trans_general(.,"latin-ascii"))) %>%
+  filter(str_detect(GEOGRAFICO, "Centro") | str_detect(NOMBRE, "Hospital")) %>%
+  filter(!GEOGRAFICO %in% c("Centro Comercial")) %>%
+  filter(CVE_MUN %in% c("004")) %>%
+  st_transform(crs = "+init=epsg:4326")
 
 
 #########################################################################
@@ -135,11 +141,6 @@ maptj <- st_transform(maptj, crs = "+init=epsg:4326")
 map_censo <- left_join(maptj, datcenso, by = c("CVE_AGEB")) %>%
   filter(!is.na(pea) )
 
-ggplot() + 
-  geom_sf(data = map_censo)
-
-
-
 ##########################################################################
 #### SCRIPT PARA OBTENER EL MAPA DE TIJUANA ##############################
 ##########################################################################
@@ -182,8 +183,20 @@ centroid_denue <- denue_sf %>%
 
 xs  <- quantile(map_censo$pea, c(0, 1/4, 2/4, 3/4, 1))
 xs[1] <- xs[1] - .00005
+
 map_censo1 <- map_censo %>%
   mutate(category = cut(pea, breaks = xs, labels = c("low", "middle", "above middle", "high")))
+
+
+xp  <- quantile(map_censo$p15sec_in, c(0, 1/4, 2/4, 3/4, 1), na.rm = TRUE)
+xp[1] <- xp[1] - .00005
+
+map_censo2 <- map_censo %>%
+  mutate(category = cut(p15sec_in, breaks = xp, labels = c("low", "middle", "above middle", "high")))
+
+
+
+
 
 
 ##############################################################################
@@ -206,10 +219,9 @@ centroid_censo1 <- centroid_censo %>%
 #### SCRIPT PARA REALIZAR MAPA DE ESCUELAS ####################
 ###############################################################
 
-map_school <- maphosp %>%
+map_school <- serv_pub %>%
   filter(CVE_MUN %in% c("004") & GEOGRAFICO %in% c("Escuela")) %>%
   st_transform(maphosp, crs = "+init=epsg:4326")
-
 
 
 ```
@@ -237,14 +249,27 @@ ggmap(tjmap) +
   geom_sf(data = map_censo1, inherit.aes = FALSE, mapping = aes(fill = category), size = 0.1) + 
   scale_fill_manual(values = c("#2e9fd9", "#f6932f", "#6ebe4c", "#ca2128")) + 
   geom_sf(data = centroid_censo1, inherit.aes = FALSE, mapping = aes(size = pobtot), alpha = 0.6) +
-  scale_size_discrete(range = c(3,21), breaks = pretty_breaks(n = 4)) + 
+  scale_size_discrete(range = c(3,15), breaks = pretty_breaks(n = 4)) + 
   scale_y_continuous(limits = c(32.397, 32.56)) +
   ggtitle("Población Económicamente Activa en Tijuana")
 
-
 ```
 
+# Mapa de población de 15 años y más con secundaria incompleta por submercado en Tijuana
 
+```{r include=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+
+ggmap(tjmap) + 
+  geom_sf(data = map_censo2, inherit.aes = FALSE, mapping = aes(fill = category), size = 0.1) + 
+  scale_fill_manual(values = c("#2e9fd9", "#f6932f", "#6ebe4c", "#ca2128")) + 
+  geom_sf(data = centroid_censo1, inherit.aes = FALSE, mapping = aes(size = pobtot), alpha = 0.6) +
+  scale_size_discrete(range = c(3,15), breaks = pretty_breaks(n = 4)) + 
+  scale_y_continuous(limits = c(32.397, 32.56)) +
+  ggtitle("Población de 15 años y más con secundaria incompleta")
+
+
+
+```
 
 
 # Mapa de Escuelas en Tijuana
@@ -258,13 +283,29 @@ ggmap(tjmap) +
   scale_color_manual(values = c("#2e9fd9")) + 
   scale_y_continuous(limits = c(32.397, 32.56)) + 
   geom_sf(data = centroid_censo1, inherit.aes = FALSE, mapping = aes(size = pobtot), alpha = 0.6)  +
-  scale_size_discrete(range = c(3,21), breaks = pretty_breaks(n = 4)) + 
+  scale_size_discrete(range = c(3,15), breaks = pretty_breaks(n = 4)) + 
+  theme(legend.position = "none") +
   ggtitle("Distribución geográfica de escuelas en Tijuana")
   
 
 ```
 
 
+# Mapa de Hospitales en Tijuana
+
+```{r include=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+
+
+ggmap(tjmap) + 
+  geom_sf(data = maptj, inherit.aes = FALSE, alpha = 0.2, size = 0.1) + 
+  geom_sf(data = maphosp, inherit.aes = FALSE, colour = "blue", size = 0.8) + 
+  geom_sf(data = centroid_censo1, inherit.aes = FALSE, mapping = aes(size = pobtot), alpha = 0.6) + 
+  scale_size_discrete(range = c(3,15), breaks = pretty_breaks(n = 4)) +
+  scale_y_continuous(limits = c(32.397, 32.56)) + 
+  ggtitle("Distribución de hospitales en Tijuana")
+
+
+```
 
 
 

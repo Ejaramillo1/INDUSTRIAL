@@ -141,7 +141,7 @@ tjmap <- get_map(tjlocation, zoom = 11, maptype = c("roadmap"))
 ###########################################################################
 
 map_denue <- st_join(maptj, denue_sf) %>%
-  mutate(clust = as.factor(clust))
+  mutate(clust = as.factor(clust)) 
 
 ##############################################################################
 #### SCRIPT PARA CALCULAR EL CENTROIDE DE LOS SUBMERCADOS ####################

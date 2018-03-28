@@ -79,7 +79,7 @@ hc <- hclust(as.dist(mdist), method = "complete")
 # Establece la distancia en metros donde se corta el algoritmo que clasifica
 # los clusters
 
-d = 10000
+d = 8000
 
 # Agrega la columna de clusters a los datos
 
@@ -141,15 +141,7 @@ tjmap <- get_map(tjlocation, zoom = 11, maptype = c("roadmap"))
 ###########################################################################
 
 map_denue <- st_join(maptj, denue_sf) %>%
-  mutate(clust = as.factor(clust),
-         clust = fct_recode(clust ,
-                            "Alamar"           = "1",
-                            "Pacífico-Nórdika" = "2",
-                            "Otay Industrial"  = "3",
-                            "El Florido"       = "4",
-                            "La Mesa"          = "5", 
-                            "Rosarito-Playas"  = "7",
-                            "Blvd.2000"        = "8"))
+  mutate(clust = as.factor(clust))
 
 ##############################################################################
 #### SCRIPT PARA CALCULAR EL CENTROIDE DE LOS SUBMERCADOS ####################

@@ -49,9 +49,6 @@ bdc <- dbcenso %>%
 
 ```
 
-
-
-
 # Exploracion de base de datos DENUE
 
 
@@ -81,7 +78,7 @@ denue_clust <- dbdenue %>%
          fecha = ymd(as_date(paste0(year_alta, mes_alta, day))),
          codigo_industria = factor(str_sub(codigo_act,1,2))) %>%
   filter(municipio %in% "Tijuana" & 
-           codigo_industria %in% c("31", "32", "33", "46")) %>%
+           codigo_industria %in% c("31", "32", "33")) %>%
   rename_all(funs(str_to_lower(.))) %>%
   mutate(LATITUD = latitud,
          LONGITUD = longitud) %>%

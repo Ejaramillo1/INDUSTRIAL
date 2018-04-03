@@ -3,7 +3,7 @@
 ##########################################################################
 
 library(easypackages)
-my_packages <- c("tidyverse", "readxl", "lubridate", "geosphere", "scales", "sf", "ggmap")
+my_packages <- c("tidyverse", "readxl", "lubridate", "geosphere", "scales", "sf", "ggmap", "ggrepel")
 libraries(my_packages)
 
 # Descarga la base de datos de DENUE
@@ -86,6 +86,17 @@ d = 8000
 
 denue_sf$clust <- cutree(hc, h = d)
 
+
+denue_sf <- denue_sf %>%
+  mutate(clust = fct_recode(as.factor(clust),
+                            "Vía Rápida - Alamar" = "1",
+                            "Paífico - Nórdika" = "2",
+                            "Boulevard 2000" = "3",
+                            "El Florido" = "4",
+                            "UABC - FINSA" = "5",
+                            "Playas - Centro" = "7",
+                            "Ejido Ojo de Agua" = "8"))
+
 ##########################################################################
 ############ SCRIPT PARA LIMPIAR LA BASE DE DATOS DEL CENSO ##############
 ##########################################################################
@@ -141,9 +152,7 @@ tjmap <- get_map(tjlocation, zoom = 11, maptype = c("roadmap"))
 #### SCRIPT UNIR LOS DATOS DE DENUE CON EL MAPA DE LOS POLIGONOS POR AGEB #
 ###########################################################################
 
-map_denue <- st_join(maptj, denue_sf) %>%
-  mutate(clust = as.factor(clust)) 
-
+map_denue <- st_join(maptj, denue_sf)
 ##############################################################################
 #### SCRIPT PARA CALCULAR EL CENTROIDE DE LOS SUBMERCADOS ####################
 ##############################################################################
@@ -174,7 +183,8 @@ xp  <- quantile(map_censo$p15sec_in, c(0, 1/4, 2/4, 3/4, 1), na.rm = TRUE)
 xp[1] <- xp[1] - .00005
 
 map_censo2 <- map_censo %>%
-  mutate(category = cut(p15sec_in, breaks = xp, labels = c("low", "middle", "above middle", "high")))
+  mutate(category = cut(p15sec_in, breaks = xp, labels = c("low", "middle", "above middle", "high"))
+         )
 
 
 ##############################################################################
@@ -185,13 +195,16 @@ centroid_censo <- censo_spat_point %>%
   group_by(clust) %>%
   summarise(pobtot = sum(pobtot)) %>%
   st_centroid()
+  
 
 
 xd <- quantile(centroid_censo$pobtot, c(0,1/4,2/4,3/4,1))
 xd[1] <- xd[1] - .00005
 
 centroid_censo1 <- centroid_censo %>%
-  mutate(pobtot = cut(pobtot, breaks = xd, labels = c("low", "middle", "above middle", "high")))
+  mutate(pobtot = cut(pobtot, breaks = xd, labels = c("low", "middle", "above middle", "high")),
+         COORDS_X = map_dbl(geometry,1),
+         COORDS_Y = map_dbl(geometry,2))
 
 ###############################################################
 #### SCRIPT PARA REALIZAR MAPA DE ESCUELAS ####################
@@ -207,8 +220,13 @@ map_school <- serv_pub %>%
 ggmap(tjmap) +
   geom_sf(data = map_denue, mapping = aes(fill = clust), inherit.aes = FALSE, alpha = 0.6, size = 0.1)+ 
   scale_y_continuous(limits = c(32.397, 32.56)) + 
-  ggtitle("Distribución Industrial en Tijuana")
-
+  ggtitle("Submercados industriales en Tijuana") + 
+  theme(legend.justification = c(1,0),legend.position = c(1,0), 
+        legend.text = element_text(size = 7), legend.title = element_text(size = 8, face = "bold"), 
+        legend.key.size = unit(.5, "line"), plot.title = element_text(face = "bold", size = 16, family = "sans"), legend.background = element_blank()) +
+  scale_fill_manual(values = c("#f6932f", "#ca2128", "#6ebe4c", "#2e9fd9","#a74e9d","#22602c","#b7451d", "#195772", "#5e1e60"),
+                    name = "Submercado") +
+  labs(caption = "Source: DENUE, INEGI")
   dev.off()
 
 
@@ -219,21 +237,23 @@ ggsave("aglomeraciones_industriales.jpg")
 
 ggmap(tjmap) + 
   geom_sf(data = map_censo1, inherit.aes = FALSE, mapping = aes(fill = category), size = 0.1) + 
-  scale_fill_manual(values = c("#2e9fd9", "#f6932f", "#6ebe4c", "#ca2128")) + 
-  geom_sf(data = centroid_censo1, inherit.aes = FALSE, mapping = aes(size = pobtot, colour = factor(clust)), alpha = 0.9) +
-  scale_size_discrete(range = c(3,25), breaks = pretty_breaks(n = 4)) + 
+  scale_fill_manual(values = c("#2e9fd9", "#f6932f", "#6ebe4c", "#ca2128")) +
   scale_y_continuous(limits = c(32.397, 32.56)) +
-  theme(legend.position = "none") + 
-  ggtitle("Población Económicamente Activa en Tijuana")
+  ggtitle("Workers distribution by AGEB") + 
+  geom_sf(data = centroid_censo1, inherit.aes = FALSE, alpha = .5, mapping = aes(size = pobtot)) + 
+  scale_size_discrete(range = c(3,15), breaks = pretty_breaks(n = 4)) +
+  geom_label_repel(data = centroid_censo1, mapping = aes(COORDS_X, COORDS_Y, label = clust)
+                   ,color = "#5e1e60", fontface = "bold", size = 2, alpha = 0.7)
   dev.off()
 
-ggsave("poblacion_economicamente_activa.jpg")
+ggsave("economically_active_population.jpg")
 
 # Mapa de población de 15 años y más con secundaria incompleta por submercado en Tijuana
 
 ggmap(tjmap) + 
   geom_sf(data = map_censo2, inherit.aes = FALSE, mapping = aes(fill = category), size = 0.1) + 
-  scale_fill_manual(values = c("#2e9fd9", "#f6932f", "#6ebe4c", "#ca2128")) + 
+  scale_fill_manual(values = c("#2e9fd9", "#f6932f", "#6ebe4c", "#ca2128"),
+                    name = "Workers agglomeration") + 
   geom_sf(data = centroid_censo1, inherit.aes = FALSE, mapping = aes(fill = clust),size = pobtot, alpha = 0.6) +
   scale_size_discrete(range = c(3,15), breaks = pretty_breaks(n = 4)) + 
   scale_y_continuous(limits = c(32.397, 32.56)) +

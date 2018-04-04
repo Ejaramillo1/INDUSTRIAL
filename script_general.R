@@ -3,7 +3,7 @@
 ##########################################################################
 
 library(easypackages)
-my_packages <- c("tidyverse", "readxl", "lubridate", "geosphere", "scales", "sf", "ggmap", "ggrepel")
+my_packages <- c("tidyverse", "readxl", "lubridate", "geosphere", "scales", "sf", "ggmap", "ggrepel", "cowplot")
 libraries(my_packages)
 
 # Descarga la base de datos de DENUE
@@ -61,6 +61,51 @@ denue_sf <- dbdenue %>%
   droplevels()
 
 
+ci <- dbdenue %>%
+  dplyr::select(latitud, longitud ,cve_loc,municipio ,id, nom_estab, raz_social, codigo_act, nombre_act, per_ocu, tipo_vial, tipo_asent, nomb_asent, tipoCenCom, nom_CenCom, localidad, ageb, manzana, fecha_alta)  %>%
+  separate(fecha_alta, into = c("mes_alta", "year_alta"), sep = "\\s") %>%
+  mutate(latitud = as.numeric(latitud),
+         longitud = as.numeric(longitud),
+         day = 01,
+         fecha = ymd(as_date(paste0(year_alta, mes_alta, day))),
+         codigo_industria = factor(str_sub(codigo_act,1,2))) %>%
+  filter(municipio %in% "Tijuana" & 
+           codigo_industria %in% c("32", "33") &
+           per_ocu %in% c("251 y más personas")) %>%
+  rename_all(funs(str_to_lower(.))) %>%
+  mutate(LATITUD = latitud,
+         LONGITUD = longitud) %>%
+  rename("y" = LATITUD,
+         "x" = LONGITUD,
+         "CVE_AGEB" = "ageb") %>%
+  select(x, y, CVE_AGEB) %>%
+  droplevels()
+
+
+PARQUES <- dbdenue %>%
+  dplyr::select(latitud, longitud ,cve_loc,municipio ,id, nom_estab, raz_social, codigo_act, nombre_act, per_ocu, tipo_vial, tipo_asent, nomb_asent, tipoCenCom, nom_CenCom, localidad, ageb, manzana, fecha_alta)  %>%
+  separate(fecha_alta, into = c("mes_alta", "year_alta"), sep = "\\s") %>%
+  mutate(latitud = as.numeric(latitud),
+         longitud = as.numeric(longitud),
+         day = 01,
+         fecha = ymd(as_date(paste0(year_alta, mes_alta, day))),
+         codigo_industria = factor(str_sub(codigo_act,1,2))) %>%
+  filter(municipio %in% "Tijuana" & str_detect(tipo_asent, "INDUSTRIAL")) %>%
+  distinct(latitud, longitud, tipo_asent, nomb_asent) %>%
+  rename_all(funs(str_to_lower(.))) %>%
+  group_by(nomb_asent) %>%
+  mutate(m.lat = mean(latitud, na.rm = TRUE),
+         m.long = mean(longitud, na.rm = TRUE)) %>%
+  distinct(nomb_asent, m.lat, m.long)
+  mutate(LATITUD = latitud,
+         LONGITUD = longitud) %>%
+  rename("y" = LATITUD,
+         "x" = LONGITUD) %>%
+  droplevels() %>%
+    
+
+
+
 ##########################################################################
 #### SCRIPT PARA CONVERTIR LOS DATOS COMBINADOS DEL CENSO Y LA DENUE A ###
 #### ESPACIALES ##########################################################
@@ -91,7 +136,7 @@ denue_sf <- denue_sf %>%
   mutate(clust = fct_recode(as.factor(clust),
                             "Vía Rápida - Alamar" = "1",
                             "Paífico - Nórdika" = "2",
-                            "Boulevard 2000" = "3",
+                            "Ciudad Industrial Otay" = "3",
                             "El Florido" = "4",
                             "UABC - FINSA" = "5",
                             "Playas - Centro" = "7",
@@ -188,8 +233,8 @@ map_censo2 <- map_censo %>%
 
 
 ##############################################################################
-#### SCRIPT PARA CALCULAR EL CENTROIDE DE LOS SUBMERCADOS ####################
-##############################################################################
+#### S
+########################################################################
 
 centroid_censo <- censo_spat_point %>%
   group_by(clust) %>%
@@ -206,6 +251,10 @@ centroid_censo1 <- centroid_censo %>%
          COORDS_X = map_dbl(geometry,1),
          COORDS_Y = map_dbl(geometry,2))
 
+centroid_censo2 <- centroid_censo1 %>%
+  filter(clust %in% c("Paífico - Nórdika")) %>%
+  mutate(clust = fct_recode(clust, 
+                            "ATISA INDUSTRIAL" = "Paífico - Nórdika"))
 ###############################################################
 #### SCRIPT PARA REALIZAR MAPA DE ESCUELAS ####################
 ###############################################################
@@ -217,83 +266,271 @@ map_school <- serv_pub %>%
 
 # Principales aglomeraciones industriales en Tijuana
 
-ggmap(tjmap) +
-  geom_sf(data = map_denue, mapping = aes(fill = clust), inherit.aes = FALSE, alpha = 0.6, size = 0.1)+ 
-  scale_y_continuous(limits = c(32.397, 32.56)) + 
-  ggtitle("Submercados industriales en Tijuana") + 
-  theme(legend.justification = c(1,0),legend.position = c(1,0), 
-        legend.text = element_text(size = 7), legend.title = element_text(size = 8, face = "bold"), 
-        legend.key.size = unit(.5, "line"), plot.title = element_text(face = "bold", size = 16, family = "sans"), legend.background = element_blank()) +
-  scale_fill_manual(values = c("#f6932f", "#ca2128", "#6ebe4c", "#2e9fd9","#a74e9d","#22602c","#b7451d", "#195772", "#5e1e60"),
-                    name = "Submercado") +
-  labs(caption = "Source: DENUE, INEGI")
+ggmap(tjmap)                                                                         +
+  theme_minimal()                                                                    + 
+  geom_sf(data               = map_denue, 
+          mapping            = aes(fill           = clust), 
+          inherit.aes        = FALSE, 
+          alpha              = 0.6, 
+          size               = 0.1,
+          color = "Grey")                                                            + 
+  geom_label_repel(data = centroid_censo2, 
+                   mapping = aes(x = COORDS_X, y = COORDS_Y, 
+                                 label = clust),
+                   color      = "black", 
+                   fontface   = "bold", 
+                   size       = 2, 
+                   alpha      = 0.7)                                     +
+  scale_y_continuous(limits  = c(32.397, 
+                                 32.56))                                             + 
+  theme(legend.justification = c(1,0),
+        legend.position      = c(1,0), 
+        legend.text          = element_text(size   = 7), 
+        legend.title         = element_text(size   = 8, 
+                                            face   = "bold"), 
+        legend.key.size      = unit(.5, 
+                                    "line"), 
+        plot.title           = element_text(face   = "bold", 
+                                            size   = 16, 
+                                            family = "sans"), 
+        legend.background    = element_blank())                                      +
+  scale_fill_manual(values   = c("#f6932f", 
+                                 "#ca2128", 
+                                 "#6ebe4c", 
+                                 "#2e9fd9", 
+                                 "#a74e9d", 
+                                 "#22602c", 
+                                 "#b7451d", 
+                                 "#195772", 
+                                 "#5e1e60"),
+                    name     = "Submarket")                                         +
+  labs(caption               = "Source: INEGI; DENUE, Census Data 2010")            +
+  ggtitle("Main industrial aglommerations in Tijuana")
   dev.off()
-
-
 
 ggsave("aglomeraciones_industriales.jpg")
 
 # Población Económicamente Activa por submercado en Tijuana
 
 ggmap(tjmap) + 
-  geom_sf(data = map_censo1, inherit.aes = FALSE, mapping = aes(fill = category), size = 0.1) + 
-  scale_fill_manual(values = c("#2e9fd9", "#f6932f", "#6ebe4c", "#ca2128")) +
-  scale_y_continuous(limits = c(32.397, 32.56)) +
-  ggtitle("Workers distribution by AGEB") + 
-  geom_sf(data = centroid_censo1, inherit.aes = FALSE, alpha = .5, mapping = aes(size = pobtot)) + 
-  scale_size_discrete(range = c(3,15), breaks = pretty_breaks(n = 4)) +
-  geom_label_repel(data = centroid_censo1, mapping = aes(COORDS_X, COORDS_Y, label = clust)
-                   ,color = "#5e1e60", fontface = "bold", size = 2, alpha = 0.7)
+  theme_minimal() +
+  geom_sf(data                =   map_censo1, 
+          inherit.aes         =   FALSE, 
+          mapping             =   aes(fill          = category), 
+          size                =   0.1,
+          alpha               =   0.6,
+          color = "Grey")                                                            + 
+  scale_fill_manual(values    = c("#2e9fd9", 
+                                  "#f6932f", 
+                                  "#6ebe4c", 
+                                  "#ca2128"),
+                    name      = "Workers density")                                   +
+  scale_y_continuous(limits   = c(32.397, 
+                                  32.56))                                            + 
+  theme(legend.justification  = c(1,0), 
+        legend.position       = c(1,0),
+        legend.text           = element_text(size   = 7), 
+        legend.title          = element_text(size   = 8, 
+                                             face   = "bold"),
+        legend.key.size       = unit(.5, "line"), 
+        plot.title            = element_text(face   = "bold", 
+                                             size   = 16, 
+                                             family = "sans"), 
+        legend.background     = element_blank())                                     +
+  geom_sf(data                = centroid_censo1, 
+          inherit.aes         = FALSE, 
+          alpha               = .5, 
+          mapping             = aes(size            = pobtot))                       + 
+  scale_size_discrete(range   = c(3,15), 
+                      breaks  = pretty_breaks(n     = 4))                            +
+  geom_label_repel(data       = centroid_censo1, 
+                   mapping    = aes(COORDS_X, 
+                                    COORDS_Y, 
+                                    label           = clust), 
+                   color      = "#5e1e60", 
+                   fontface   = "bold", 
+                   size       = 2, 
+                   alpha      = 0.7)                                                 +
+  ggtitle("Distribution density of working population in Tijuana")                                +
+  labs(caption                = "Source: INEGI; DENUE, Census Data 2010")
   dev.off()
 
 ggsave("economically_active_population.jpg")
 
-# Mapa de población de 15 años y más con secundaria incompleta por submercado en Tijuana
-
-ggmap(tjmap) + 
-  geom_sf(data = map_censo2, inherit.aes = FALSE, mapping = aes(fill = category), size = 0.1) + 
-  scale_fill_manual(values = c("#2e9fd9", "#f6932f", "#6ebe4c", "#ca2128"),
-                    name = "Workers agglomeration") + 
-  geom_sf(data = centroid_censo1, inherit.aes = FALSE, mapping = aes(fill = clust),size = pobtot, alpha = 0.6) +
-  scale_size_discrete(range = c(3,15), breaks = pretty_breaks(n = 4)) + 
-  scale_y_continuous(limits = c(32.397, 32.56)) +
-  theme(legend.position = "none") + 
-  ggtitle("Población de 15 años y más con secundaria incompleta")
-  dev.off()
-
-ggsave("poblacion_15_anios_no_educ.jpg")
-
-
 
 # Mapa de Escuelas en Tijuana
+ggmap(tjmap)                                                                         + 
+  theme_minimal()                                                                    +
+  geom_sf(data               = map_denue, 
+          mapping            = aes(fill           = clust), 
+          inherit.aes        = FALSE, 
+          alpha              = 0.2, 
+          size               = 0.1,
+          color = "Grey") +
+geom_label_repel(data = centroid_censo2, 
+                 mapping = aes(x = COORDS_X, y = COORDS_Y, 
+                               label = clust),
+                 color      = "black", 
+                 fontface   = "bold", 
+                 size       = 2, 
+                 alpha      = 0.7)                                     + 
+  scale_y_continuous(limits = c(32.397,
+                                32.56))                                              +
+  scale_fill_manual(values   = c("#f6932f", 
+                                 "#ca2128", 
+                                 "#6ebe4c", 
+                                 "#2e9fd9", 
+                                 "#a74e9d", 
+                                 "#22602c", 
+                                 "#b7451d",
+                                 "#195772",
+                                 "#5e1e60"), 
+                    name     = "Submarket")                                          +
+  theme(legend.justification = c(1,0),
+        legend.position = c(1,0),
+        legend.text = element_text(size = 7),
+        legend.title = element_text(size = 8,
+                                    face = "bold"),
+        legend.key.size = unit(.5,
+                               "line"),
+        plot.title = element_text(face = "bold",
+                                  size = 16,
+                                  family = "sans"),
+        legend.background = element_blank())                                        +
+  labs(title = "Public services in Tijuana: PUBLIC SCHOOLS" ,
+       caption = "Source: INEGI; DENUE, Census Data 2010") + 
+  geom_sf(data = map_school, 
+          inherit.aes = FALSE,
+          alpha = 0.6,
+          size = 1.5,
+          colour = "#195772")
 
-ggmap(tjmap) + 
-  geom_sf(data = maptj, inherit.aes = FALSE, alpha = 0.2, size = 0.1) +
-  geom_sf(data = map_school, inherit.aes = FALSE, alpha = 0.6, mapping = aes(colour = GEOGRAFICO), size = 1.5) + 
-  scale_color_manual(values = c("#2e9fd9")) + 
-  scale_y_continuous(limits = c(32.397, 32.56)) + 
-  geom_sf(data = centroid_censo1, inherit.aes = FALSE, mapping = aes(size = pobtot), alpha = 0.6)  +
-  scale_size_discrete(range = c(3,15), breaks = pretty_breaks(n = 4)) + 
-  theme(legend.position = "none") +
-  ggtitle("Distribución geográfica de escuelas en Tijuana")
-  dev.off()
-
-
-ggsave("escuelas_en_tijuana.jpg")
+dev.off()
+ggsave("escuelas_en_tijuana.jpg")  
 
 # Mapa de Hospitales en Tijuana
 
-ggmap(tjmap) + 
-  geom_sf(data = maptj, inherit.aes = FALSE, alpha = 0.2, size = 0.1) + 
-  geom_sf(data = maphosp, inherit.aes = FALSE, colour = "blue", size = 1.5) + 
-  geom_sf(data = centroid_censo1, inherit.aes = FALSE, mapping = aes(size = pobtot), alpha = 0.6) + 
-  scale_size_discrete(range = c(3,15), breaks = pretty_breaks(n = 4)) +
-  scale_y_continuous(limits = c(32.397, 32.56)) + 
-  theme(legend.position = "none") +
-  ggtitle("Distribución de hospitales en Tijuana")
+ggmap(tjmap)                                                                        + 
+  theme_minimal()                                                                   + 
+  geom_sf(data = map_denue,
+          mapping = aes(fill = clust),
+          inherit.aes = FALSE, 
+          alpha = 0.2, 
+          size = 0.1,
+          color = "Grey") + 
+  geom_sf(data = maphosp, 
+          inherit.aes = FALSE, 
+          colour = "#195772", 
+          size = 1.5) +
+  geom_label_repel(data = centroid_censo2, 
+                   mapping = aes(x = COORDS_X, y = COORDS_Y, 
+                                 label = clust),
+                   color      = "black", 
+                   fontface   = "bold", 
+                   size       = 2, 
+                   alpha      = 0.7)                                     +
+  scale_fill_manual(values   = c("#f6932f", 
+                                 "#ca2128", 
+                                 "#6ebe4c", 
+                                 "#2e9fd9", 
+                                 "#a74e9d", 
+                                 "#22602c", 
+                                 "#b7451d",
+                                 "#195772",
+                                 "#5e1e60"), 
+                    name     = "Submarket")  +
+  scale_y_continuous(limits = c(32.397, 32.56))  +
+  theme(legend.justification = c(1,0),
+        legend.position = c(1,0),
+        legend.text = element_text(size = 7),
+        legend.title = element_text(size = 8,
+                                    face = "bold"),
+        legend.key.size = unit(.5,
+                               "line"),
+        plot.title = element_text(face = "bold",
+                                  size = 16,
+                                  family = "sans"),
+        legend.background = element_blank()) +
+  labs(caption = "Source: INEGI; DENUE, Census Data 2010", 
+       title = "Public services in Tijuana: HOSPITALS") 
   dev.off()
 
 ggsave("hospitales_tijuana.jpg")
+
+
+# Densidad de principales aglomeraciones industriales en Tijuana
+
+ggmap(tjmap, extent = "panel") + 
+  geom_density2d(data = ci, aes(x, y)) +
+  stat_density2d(data = ci , aes(x, y, fill = ..level.., alpha = ..level..),
+                 size = 0.01, bins = 16, geom = 'polygon') +
+  scale_fill_gradient(low = "green", high = "red") +
+  theme_minimal() + 
+  theme(legend.position = "none", axis.title = element_blank()) +
+  scale_y_continuous(limits = c(32.397, 32.56)) +
+  theme(legend.justification = c(1,0),
+        legend.position = c(1,0),
+        legend.text = element_text(size = 7),
+        legend.title = element_text(size = 8,
+                                    face = "bold"),
+        legend.key.size = unit(.5,
+                               "line"),
+        plot.title = element_text(face = "bold",
+                                  size = 16,
+                                  family = "sans"),
+        legend.background = element_blank()) +
+  labs(caption = "Source: INEGI; DENUE, Census Data 2010", 
+       title = "Manufacturing industry density in Tijuana") +
+  geom_label_repel(data = centroid_censo2, 
+                   mapping = aes(x = COORDS_X, y = COORDS_Y, 
+                                 label = clust),
+                   color      = "black", 
+                   fontface   = "bold", 
+                   size       = 2, 
+                   alpha      = 0.7,
+                   force = 50)
+dev.off()
+
+ggsave("density.jpg")
+
+
+ggmap(tjmap) + 
+  geom_point(data= PARQUES,aes(m.long, m.lat)) +
+  geom_text_repel(data=PARQUES, aes(m.long, m.lat, label = nomb_asent))
+
+
+
+censo_spat_point %>%
+  group_by(clust) %>%
+  summarise(Male = sum(pobmas, na.rm = TRUE),
+            Female = sum(pobfem, na.rm = TRUE)) %>%
+  filter(!clust %in% c("El Florido")) %>%
+    gather(key = "sexo", value = "poblacion", Male, Female) %>%
+  arrange(sexo) %>%
+  ggplot() +
+  geom_bar(aes(x = clust, y = poblacion, fill = factor(sexo)), stat = "identity", position = "dodge") +
+  theme_minimal() +
+  labs(title = "Total population by submarket and gender in Tijuana",
+       caption = "Source: INEGI; DENUE, Census Data 2010") + 
+  xlab("") + 
+  coord_flip() + 
+  ylab("Total population") +
+  scale_fill_manual(values   = c("#ca2128", "#2e9fd9"), 
+                    name     = "Gender") +
+  scale_y_continuous(breaks = c(50000 , 100000 , 150000 ,200000, 250000 ,300000), labels = c("50,000", "100,000", "150,000", "200,000", "250,000", "300,00"))
+
+dev.off()
+
+ggsave("total_population_by_submarket.jpg")
+
+
+
+
+
+
+
+
+
 
 
 # Grafica de poblacion economicamente activa por submercado

@@ -47,7 +47,7 @@ bdc <- dbcenso %>%
 
 # DESCARGA LA BASE DE DATOS DE LA DENUE
 
-dbdenue <- read_csv("/Users/pvelazquez/Documents/PROYECTOS/INDUSTRIAL/DATOS/02_0317/denue_02_csv/conjunto_de_datos/denue_inegi_02_.csv")
+dbdenue <- read_csv("/Users/pvelazquez/Documents/PROYECTOS/INDUSTRIAL/DATOS/02_0317/denue_02_csv/conjunto_de_datos/denue_inegi_02_.csv", guess_max = 100000)
 
 
 denue_ageb <- dbdenue %>%

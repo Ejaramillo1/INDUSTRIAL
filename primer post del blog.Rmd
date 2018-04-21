@@ -1,0 +1,16 @@
+---
+title: "Primer post del blog"
+author: "José Eduardo Jaramillo Barrera"
+date: "20 de abril de 2018"
+output: html_document
+---
+
+# Estructura industrial en Tijuana
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+readRDS("denue.rds")
+```
+
+
+

@@ -1,12 +1,10 @@
 library(easypackages)
-my_packages <- c("tidyverse")
+my_packages <- c("tidyverse", "lsr")
 libraries(my_packages)
 
 # Descarga la base de datos de DENUE
 
 dbdenue <- read_csv("/Users/pvelazquez/Documents/PROYECTOS/INDUSTRIAL/DATOS/02_0317/denue_02_csv/conjunto_de_datos/denue_inegi_02_.csv", guess_max = 100000)
-
-#
 
 db <- dbdenue %>%
   filter(municipio %in% c("Tijuana")) %>%
@@ -59,8 +57,11 @@ db <- dbdenue %>%
          longitud         = as.numeric(longitud),
          latitud          = as.numeric(latitud),
          codigo_industria = str_sub(codigo_act, 1, 2)) %>% 
-  separate(fecha_alta,into = c("fa_m", "fa_y")) %>%
-  filter(codigo_industria %in% c("31", "32", "33"))
+  separate(fecha_alta,into = c("fa_m", "fa_y"))
+
+
+
+who()
 
 
 

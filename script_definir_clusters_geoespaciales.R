@@ -57,7 +57,11 @@ db <- dbdenue %>%
          longitud         = as.numeric(longitud),
          latitud          = as.numeric(latitud),
          codigo_industria = str_sub(codigo_act, 1, 2)) %>% 
-  separate(fecha_alta,into = c("fa_m", "fa_y"))
+  separate(fecha_alta,into = c("fa_m", "fa_y")) %>%
+  saveRDS("denue.rds")
+
+
+
 
 
 

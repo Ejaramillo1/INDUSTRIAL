@@ -10,7 +10,32 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 readRDS("denue.rds")
+
+library(easypackages)
+my_packages <- c("tidyverse", "knitr")
+libraries(my_packages)
+
 ```
+
+
+## Número de empresas por subsector industrial en Tijuana
+
+En la ciudad de Tijuana se pueden encontrar una gran variedad de empresas de diferentes subsectores, sin embargo es interesante conocer qué sectores cuentan con mayor cantidades para poder echar un vistazo a la composición industrial en la ciudad. 
+
+
+```{r}
+
+db %>%
+  select(per_ocu, codigo_industria, nombre_act) %>%
+  count(per_ocu, nombre_act) %>%
+  mutate(prop = prop.table(n)) %>%
+  ggplot(aes(x = reorder(nombre_act,prop), y = prop)) + 
+  geom_bar(stat = "identity") 
+  coord_flip() + 
+  facet_grid(~codigo_industria)
+```
+
+`
 
 
 

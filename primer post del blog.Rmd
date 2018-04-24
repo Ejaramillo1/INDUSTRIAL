@@ -9,10 +9,10 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-readRDS("denue.rds")
+
 
 library(easypackages)
-my_packages <- c("tidyverse", "knitr")
+my_packages <- c("tidyverse", "knitr", "spatstat", "sf")
 libraries(my_packages)
 
 ```
@@ -24,18 +24,96 @@ En la ciudad de Tijuana se pueden encontrar una gran variedad de empresas de dif
 
 
 ```{r}
+denue <- readRDS("denue.rds")
 
-db %>%
-  select(per_ocu, codigo_industria, nombre_act) %>%
-  count(per_ocu, nombre_act) %>%
-  mutate(prop = prop.table(n)) %>%
-  ggplot(aes(x = reorder(nombre_act,prop), y = prop)) + 
-  geom_bar(stat = "identity") 
-  coord_flip() + 
-  facet_grid(~codigo_industria)
+dat <- denue %>%
+  mutate(lat = latitud,
+         long = longitud) %>%
+  select(lat, long, latitud, longitud, per_ocu, codigo_act, ageb, codigo_industria)
+
+m <- dat
+
+ymax <- max(dat$lat)
+ymin <- min(dat$lat)
+
+xmax <- max(dat$long)
+xmin <- min(dat$long)
+
+w <- owin(xrange = c(xmin, xmax), yrange = c(ymin, ymax))
+
+tj <- ppp(dat$long, dat$lat, window = w, marks = m)
+
+summary(tj)
+
+length(levels(dat$codigo_act))
 ```
 
-`
+# Density
+## 2d-density
+
+
+To get an impression of local spatial variations in intensity, we plot a kernel density estimate of intensity.
+
+
+```{r}
+
+contour(density(tj), axes = FALSE)
+
+```
+
+## 3d-density
+
+```{r}
+
+
+persp(density(tj), phi = 9, theta = 25, shade = 0.9 , col = "blue", border = "grey", scale = FALSE)
+
+```
+
+
+
+
+
+```{r}
+
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

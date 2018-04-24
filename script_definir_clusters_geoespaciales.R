@@ -65,9 +65,6 @@ db <- dbdenue %>%
 
 
 
-who()
-
-
 
 ymax <- max(db$latitud)
 ymin <- min(db$latitud)

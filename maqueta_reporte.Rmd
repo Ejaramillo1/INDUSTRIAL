@@ -22,11 +22,11 @@ libraries(my_packages)
 
 # Descarga la base de datos de DENUE
 
-dbdenue <- read_csv("/Users/pvelazquez/Documents/PROYECTOS/INDUSTRIAL/DATOS/02_0317/denue_02_csv/conjunto_de_datos/denue_inegi_02_.csv")
+dbdenue <- read_csv("denue_inegi_02_.csv")
 
 # Descarga la base de datos del CENSO
 
-dbcenso <- read.csv("C:/Users/pvelazquez/Desktop/CENSO VIVIENDA/resultados_ageb_urbana_02_cpv2010/conjunto_de_datos/resultados_ageb_urbana_02_cpv2010.csv", na.strings = c("*"))
+dbcenso <- read.csv("resultados_ageb_urbana_02_cpv2010.csv", na.strings = c("*"))
 
 serv_pub <- st_read("C:/Users/pvelazquez/Google Drive/MEXICO MAPA/Baja California/conjunto de datos/02sip.shp")
 

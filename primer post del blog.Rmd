@@ -1,0 +1,163 @@
+---
+title: "Primer post del blog"
+author: "JosÃ© Eduardo Jaramillo Barrera"
+date: "20 de abril de 2018"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+# Estructura industrial en Tijuana
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+
+library(easypackages)
+my_packages <- c("tidyverse", "knitr", "spatstat", "sf")
+libraries(my_packages)
+
+
+dbdenue <- read_csv("/Users/pvelazquez/Documents/PROYECTOS/INDUSTRIAL/DATOS/02_0317/denue_02_csv/conjunto_de_datos/denue_inegi_02_.csv", guess_max = 100000)
+
+
+denue <- readRDS("denue.rds")
+
+```
+
+
+# Descripción de la base de datos
+
+Según la página web de INEGI el DENUE o Directorio Nacional de Unidades Económicas ofrece datos de identificación, ubicación, actividad económica, y tamaño de los negocios activos en el territorio nacional, acturalizados fundamentalmente en el segmento de los negocios grandes. 
+
+_En la última edición el DENUE publicó datos de identificación, de ubicación y contacto de 5 millones 78 mil 728 establecimientos_. A nivel nacional.
+
+
+
+```{r}
+colnames(dbdenue)
+
+```
+
+
+
+
+
+
+
+
+
+
+# Frecuencias
+
+
+
+```{r}
+
+denue %>%
+  
+
+
+
+```
+
+
+
+## Número de empresas por subsector industrial en Tijuana
+
+En la ciudad de Tijuana se pueden encontrar una gran variedad de empresas de diferentes subsectores, sin embargo es interesante conocer qué sectores cuentan con mayor cantidades para poder echar un vistazo a la composición industrial en la ciudad. 
+
+
+```{r}
+
+
+dat <- denue %>% 
+  select(latitud, longitud,  codigo_industria)
+
+m <- dat
+
+ymax <- max(dat$latitud)
+ymin <- min(dat$latitud)
+
+xmax <- max(dat$longitud)
+xmin <- min(dat$longitud)
+
+w <- owin(xrange = c(xmin, xmax), yrange = c(ymin, ymax))
+
+tj <- ppp(dat$longitud, dat$latitud, window = w)
+
+summary(tj)
+
+length(levels(dat$codigo_act))
+```
+
+# Gráfica de Tijuana
+
+
+En la siguiente gráfica se puede apreciar la distribución geográfica de las empresas en Tijuana. Se observa por ejemplo que la distribución de las empresas en Tijuana no es homogénea en toda la ciudad, las principales aglomeraciones se encuentran ubicadas hacia el noroeste, en ésta gráfica ubicado del lado izquierdo superior
+
+```{r}
+
+plot(tj)
+
+```
+
+# Density
+## 2d-density
+
+
+Graficamos la densidad de empresas en el espacio geográfico de estudio. Observamos que la aglomeración más importante de empresas se registra como mencionaba anteriormente hacia el lado izquierdo superior de la gráfica.
+
+
+
+```{r}
+
+contour(density(tj), axes = FALSE)
+
+```
+
+## 3d-density
+
+Sólo para efectos ilustrativos graficamos la densidad de empresas como una tercera dimensión adicional a la longitud y la latid. Se puede apreciar que existen picos significativos en la distribución de empresas en el municipio de Tijuana.
+
+
+```{r}
+
+persp(density(tj), phi = 9, theta = 25, shade = 0.9 , col = "blue", border = "grey", scale = FALSE)
+
+```
+
+
+## Conteo por cuadrantes
+
+Se puede realizar un conteo por cuadrantes, donde dividimos el área de estudio en rectángulos del mismo tamaño y se visualiza el conteo del número de empresas. 
+
+```{r}
+
+
+plot(quadratcount(tj))
+
+```
+
+
+
+# Ripley K function
+
+```{r}
+
+K <- Kest(tj)
+plot(K)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+

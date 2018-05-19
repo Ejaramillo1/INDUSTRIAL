@@ -8,7 +8,7 @@ libraries(my_packages)
 
 # Descarga la base de datos de DENUE
 
-dbdenue <- read_csv("/Users/pvelazquez/Documents/PROYECTOS/INDUSTRIAL/DATOS/02_0317/denue_02_csv/conjunto_de_datos/denue_inegi_02_.csv")
+dbdenue <- read_csv("/Users/pvelazquez/Documents/PROYECTOS/INDUSTRIAL/DATOS/02_0317/denue_02_csv/conjunto_de_datos/denue_inegi_02_.csv", guess_max = 1000000)
 
 # Descarga la base de datos del CENSO
 
@@ -22,6 +22,12 @@ maphosp <- serv_pub %>%
   filter(!GEOGRAFICO %in% c("Centro Comercial")) %>%
   filter(CVE_MUN %in% c("004")) %>%
   st_transform(crs = "+init=epsg:4326")
+
+
+rezago_social <- read_csv("Rezago Social en AGEB 2010 vf.csv") %>%
+  select(`Clave de la AGEB`, `Grado de rezago social (clases latentes)`, `Entidad federativa`, `Nombre del municipio`) %>%
+  mutate_if(., is.character, funs(stringi::stri_trans_general(.,"latin-ascii"))) %>%
+  filter(`Entidad federativa`  %in% "Baja California" & `Nombre del municipio` %in% "Tijuana")
 
 
 #########################################################################
@@ -183,6 +189,13 @@ maptj <- st_transform(maptj, crs = "+init=epsg:4326")
 
 map_censo <- left_join(maptj, datcenso, by = c("CVE_AGEB")) %>%
   filter(!is.na(pea) )
+
+# Mapa de ageb nivel socioeconómico
+
+map_coneval <- left_join(maptj, rezago_social, by = c("CVE_AGEB" = "Clave de la AGEB"))
+
+ggmap(tjmap) + 
+  geom_sf(data = map_coneval, inherit.aes = FALSE, mapping = aes(fill = factor(`Grado de rezago social (clases latentes)`)))
 
 ##########################################################################
 #### SCRIPT PARA OBTENER EL MAPA DE TIJUANA ##############################
@@ -357,6 +370,52 @@ ggmap(tjmap) +
 
 ggsave("economically_active_population.jpg")
 
+# Población Económicamente Activa por submercado en Tijuana
+
+ggmap(tjmap) + 
+  theme_minimal() +
+  geom_sf(data                =   map_censo1, 
+          inherit.aes         =   FALSE, 
+          mapping             =   aes(fill          = category), 
+          size                =   0.1,
+          alpha               =   0.6,
+          color = "Grey")                                                            + 
+  scale_fill_manual(values    = c("#2e9fd9", 
+                                  "#f6932f", 
+                                  "#6ebe4c", 
+                                  "#ca2128"),
+                    name      = "Workers density")                                   +
+  scale_y_continuous(limits   = c(32.397, 
+                                  32.56))                                            + 
+  theme(legend.justification  = c(1,0), 
+        legend.position       = c(1,0),
+        legend.text           = element_text(size   = 7), 
+        legend.title          = element_text(size   = 8, 
+                                             face   = "bold"),
+        legend.key.size       = unit(.5, "line"), 
+        plot.title            = element_text(face   = "bold", 
+                                             size   = 16, 
+                                             family = "sans"), 
+        legend.background     = element_blank())                                     +
+  geom_sf(data                = centroid_censo1, 
+          inherit.aes         = FALSE, 
+          alpha               = .5, 
+          mapping             = aes(size            = pobtot))                       + 
+  scale_size_discrete(range   = c(3,15), 
+                      breaks  = pretty_breaks(n     = 4))                            +
+  geom_label_repel(data       = centroid_censo1, 
+                   mapping    = aes(COORDS_X, 
+                                    COORDS_Y, 
+                                    label           = clust), 
+                   color      = "#5e1e60", 
+                   fontface   = "bold", 
+                   size       = 2, 
+                   alpha      = 0.7)                                                 +
+  ggtitle("Distribution density of working population in Tijuana")                                +
+  labs(caption                = "Source: INEGI; DENUE, Census Data 2010")
+dev.off()
+
+ggsave("economically_active_population.jpg")
 
 # Mapa de Escuelas en Tijuana
 ggmap(tjmap)                                                                         + 
@@ -492,6 +551,16 @@ ggmap(tjmap, extent = "panel") +
 dev.off()
 
 ggsave("density.jpg")
+
+
+censo_spat_point %>%
+  filter(clust %in% c("Pacífico - Nordika")) %>%
+  select(CVE_AGEB, graproes) %>%
+  summary(mgrap = mean(graproes))
+  
+
+
+
 
 
 ggmap(tjmap) + 
